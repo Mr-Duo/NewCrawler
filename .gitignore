@@ -2,3 +2,4 @@ in*
 out*
 log
 test*
+*.sh
