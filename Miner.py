@@ -25,7 +25,7 @@ EXT2LANG = {
     "ts": "TypeScript",
     "php": "PHP",
     "cs": "C#",
-    "h": "C",
+    #"h": "C",
     # Add more extensions and programming languages as needed
 }
 
