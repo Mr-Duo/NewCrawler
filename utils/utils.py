@@ -3,9 +3,9 @@ import logging as log
 import json
 import uuid
 
-def create_log_handler(core_id: str):
+def create_log_handler(name: str) -> log.Logger:
     # Construct the log filename based on the core ID
-    log_filename = f'log/logs_core_{core_id}.log'
+    log_filename = f'log/{name}'
     
     # Create a logger with the core-specific name
     logger = log.getLogger(name=f'core_{core_id}')

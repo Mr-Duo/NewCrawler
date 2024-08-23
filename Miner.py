@@ -25,7 +25,7 @@ EXT2LANG = {
     "ts": "TypeScript",
     "php": "PHP",
     "cs": "C#",
-    #"h": "C",
+    "h": "C",
     # Add more extensions and programming languages as needed
 }
 
@@ -39,7 +39,7 @@ class Miner:
 
         self.save_path = f"{DIR_PATH}/out"
         self.num_commits_per_files = 1000
-        self.logger = create_log_handler("Main")
+        self.logger = create_log_handler("logs_main.log")
         self.repo_name = None
 
         
@@ -62,7 +62,7 @@ class Miner:
         try:
             self.repo = Repo(self.repo_path)
             self.languages = params.language
-            self.logger.info(params.language)
+            # self.logger.info(params.language)
         except Exception as e:
             self.logger.error(f"Catch error: {e}")
             self.logger.error(f"Cannot find {self.repo_path}")
@@ -200,8 +200,9 @@ class Miner:
     
     def process_multiple_commits(self, commit_ids: List[str], worker_id: int = 0) -> List[Dict]:
         extracted_commits_list = []
+        log_file = f"logs_{self.repo_name}_{worker_id}.log"
         logger = create_log_handler(worker_id)
-        logger.info(commit_ids)
+        # logger.info(commit_ids)
         for commit_id in tqdm(commit_ids, f"Thread {worker_id}"):            
             if len(extracted_commits_list) % self.num_commits_per_files == 0:
                 file_id = generate_id()
@@ -226,7 +227,7 @@ class Miner:
         elif self.end is not None:
             self.commits = self.commits[:self.end]
         
-        self.logger.info(self.commits)
+        # self.logger.info(self.commits)
         num_commits = len(self.commits)
 
         sublist_length = num_commits // self.workers
