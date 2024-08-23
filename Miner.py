@@ -71,8 +71,6 @@ class Miner:
             self.repo_name = self.repo.remotes.origin.url.rstrip('/').split('/')[-1].replace('.git', '')
 
     def run(self):
-        self.logger = create_log_handler("Main")
-
         if not os.path.exists(self.save_path):
             os.makedirs(self.save_path)
 
@@ -201,7 +199,7 @@ class Miner:
     def process_multiple_commits(self, commit_ids: List[str], worker_id: int = 0) -> List[Dict]:
         extracted_commits_list = []
         log_file = f"logs_{self.repo_name}_{worker_id}.log"
-        logger = create_log_handler(worker_id)
+        logger = create_log_handler(log_file)
         # logger.info(commit_ids)
         for commit_id in tqdm(commit_ids, f"Thread {worker_id}"):            
             if len(extracted_commits_list) % self.num_commits_per_files == 0:
