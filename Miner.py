@@ -33,10 +33,15 @@ class Miner:
     def __init__(self, params):
         self.url = params.url
         self.repo_path = params.path
-        self.save_path = f"{DIR_PATH}/out"
         self.workers = params.workers
+        self.start = params.start
+        self.end = params.end
+
+        self.save_path = f"{DIR_PATH}/out"
         self.num_commits_per_files = 1000
         self.logger = create_log_handler("Main")
+        self.repo_name = None
+
         
         if self.url is not None:
             if not os.path.exists(self.repo_path):
@@ -71,8 +76,16 @@ class Miner:
         if not os.path.exists(self.save_path):
             os.makedirs(self.save_path)
 
-        out_file = f"{self.save_path}/extracted-all-{self.repo_name}.jsonl"
         result = self.process_parallel()
+        
+        if self.start is not None and self.end is not None:
+            out_file = f"{self.save_path}/extracted-all-{self.repo_name}-start-{self.start}-end-{self.end}.jsonl"
+        elif self.start is not None:
+            out_file = f"{self.save_path}/extracted-all-{self.repo_name}-start-{self.start}.jsonl"
+        elif self.end is not None:
+            out_file = f"{self.save_path}/extracted-all-{self.repo_name}-end-{self.end}.jsonl"
+        else:
+            out_file = f"{self.save_path}/extracted-all-{self.repo_name}.jsonl"
         save_jsonl(result, out_file)
 
     def process_one_commit(self, commit_id: str, logger: logger.Logger) -> Dict:
@@ -188,6 +201,7 @@ class Miner:
     def process_multiple_commits(self, commit_ids: List[str], worker_id: int = 0) -> List[Dict]:
         extracted_commits_list = []
         logger = create_log_handler(worker_id)
+        logger.info(commit_ids)
         for commit_id in tqdm(commit_ids, f"Thread {worker_id}"):            
             if len(extracted_commits_list) % self.num_commits_per_files == 0:
                 file_id = generate_id()
@@ -205,6 +219,14 @@ class Miner:
 
     def process_parallel(self):
         self.commits = [commit.hexsha for commit in self.repo.iter_commits()]
+        if self.start is not None and self.end is not None:
+            self.commits = self.commits[self.start:self.end]
+        elif self.start is not None:
+            self.commits = self.commits[self.start:]
+        elif self.end is not None:
+            self.commits = self.commits[:self.end]
+        
+        self.logger.info(self.commits)
         num_commits = len(self.commits)
 
         sublist_length = num_commits // self.workers
@@ -212,7 +234,7 @@ class Miner:
             sublists = [self.commits]
         else:
             sublists = [self.commits[i:i + sublist_length] for i in range(0, num_commits, sublist_length)]
-        num_thread = min(self.workers, sublist_length)
+        num_thread = self.workers
         
         futures = []
         results = []
@@ -240,6 +262,8 @@ if __name__ == "__main__":
     parser.add_argument("--language", type= str, help="Language")
     parser.add_argument("--url", type=str, help= "Git clone url")
     parser.add_argument("--path", type=str, help= "Local Repo path", default= f"{DIR_PATH}/input")
+    parser.add_argument("--start", type=int, default=None, help= "First commit index")
+    parser.add_argument("--end", type=int, default=None, help="Last commit index")
 
     params = parser.parse_args()
     miner = Miner(params)
