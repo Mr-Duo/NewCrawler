@@ -12,7 +12,6 @@ from utils.aggregator import *
 from utils.line_parser import *
 from utils.utils import *
 
-
 EXT2LANG = {
     "py": "Python",
     "java": "Java",
@@ -36,6 +35,7 @@ class Miner:
         self.repo_path = params.path
         self.save_path = f"{DIR_PATH}/out"
         self.workers = params.workers
+        self.num_commits_per_files = 1000
         self.logger = create_log_handler("Main")
         
         if self.url is not None:
@@ -71,7 +71,7 @@ class Miner:
         if not os.path.exists(self.save_path):
             os.makedirs(self.save_path)
 
-        out_file = f"{self.save_path}/extracted_all_{self.repo_name}.jsonl"
+        out_file = f"{self.save_path}/extracted-all-{self.repo_name}.jsonl"
         result = self.process_parallel()
         save_jsonl(result, out_file)
 
@@ -188,9 +188,11 @@ class Miner:
     def process_multiple_commits(self, commit_ids: List[str], worker_id: int = 0) -> List[Dict]:
         extracted_commits_list = []
         logger = create_log_handler(worker_id)
-        out_file = f"{self.save_path}/extracted_{self.repo_name}_{worker_id}.jsonl"
-
-        for commit_id in tqdm(commit_ids, f"Thread {worker_id}"):
+        for commit_id in tqdm(commit_ids, f"Thread {worker_id}"):            
+            if len(extracted_commits_list) % self.num_commits_per_files == 0:
+                file_id = generate_id()
+                out_file = f"{self.save_path}/extracted-{self.repo_name}-{file_id}.jsonl"
+            
             try: 
                 extracted_commit = self.process_one_commit(commit_id, logger)
                 if extracted_commit is not None:

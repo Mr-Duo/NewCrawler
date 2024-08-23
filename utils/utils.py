@@ -1,7 +1,7 @@
 from typing import List, Dict
 import logging as log
 import json
-
+import uuid
 
 def create_log_handler(core_id: str):
     # Construct the log filename based on the core ID
@@ -47,3 +47,6 @@ def append_jsonl(data: List[Dict], output_file: str):
         log.info(f"Successfully appended to {output_file}")
     except Exception as e:
         log.error(f"Exception {e} - Trying to append to {output_file}")
+
+def generate_id():
+    return uuid.uuid1()
