@@ -8,7 +8,7 @@ def create_log_handler(name: str) -> log.Logger:
     log_filename = f'log/{name}'
     
     # Create a logger with the core-specific name
-    logger = log.getLogger(name=f'core_{core_id}')
+    logger = log.getLogger(name=name)
     logger.setLevel(log.INFO)  # Set the logging level to INFO
     
     # Create a file handler for logging
@@ -26,7 +26,7 @@ def create_log_handler(name: str) -> log.Logger:
     log.getLogger('pydriller').setLevel(log.WARNING)
 
     # Log the initialization message
-    logger.info(f'Logging initialized for core {core_id}')
+    logger.info(f'Logging initialized for {name}')
 
     return logger
 
