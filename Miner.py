@@ -1,0 +1,244 @@
+from git import Repo, Commit
+from typing import Dict, List
+from datetime import datetime, timezone
+from tqdm import tqdm
+from concurrent.futures import ProcessPoolExecutor, as_completed
+import json
+import traceback
+import logging as logger
+import os, shutil
+
+from utils.aggregator import *
+from utils.line_parser import *
+from utils.utils import *
+
+
+EXT2LANG = {
+    "py": "Python",
+    "java": "Java",
+    "cpp": "C++",
+    "c": "C",
+    "js": "JavaScript",
+    "rb": "Ruby",
+    "swift": "Swift",
+    "go": "Go",
+    "rs": "Rust",
+    "ts": "TypeScript",
+    "php": "PHP",
+    "cs": "C#",
+    "h": "C",
+    # Add more extensions and programming languages as needed
+}
+
+class Miner:
+    def __init__(self, params):
+        self.url = params.url
+        self.repo_path = params.path
+        self.save_path = f"{DIR_PATH}/out"
+        self.workers = params.workers
+        self.logger = create_log_handler("Main")
+        
+        if self.url is not None:
+            if not os.path.exists(self.repo_path):
+                os.mkdir(self.repo_path)
+            
+            self.repo_name = os.path.basename(self.url)
+            if self.repo_name.endswith('.git'):
+                self.repo_name = self.repo_name[:-4]
+
+            self.repo_path = f"{self.repo_path}/{self.repo_name}"
+
+            try:
+                Repo.clone_from(self.url, self.repo_path)
+            except FileExistsError:
+                self.logger.info("File existed")
+            except Exception as e:
+                self.logger.info(f"{e}")         
+        try:
+            self.repo = Repo(self.repo_path)
+            self.languages = params.language
+            self.logger.info(params.language)
+        except Exception as e:
+            self.logger.error(f"Catch error: {e}")
+            self.logger.error(f"Cannot find {self.repo_path}")
+
+        if self.repo_name is None:
+            self.repo_name = self.repo.remotes.origin.url.rstrip('/').split('/')[-1].replace('.git', '')
+
+    def run(self):
+        self.logger = create_log_handler("Main")
+
+        if not os.path.exists(self.save_path):
+            os.makedirs(self.save_path)
+
+        out_file = f"{self.save_path}/extracted_all_{self.repo_name}.jsonl"
+        result = self.process_parallel()
+        save_jsonl(result, out_file)
+
+    def process_one_commit(self, commit_id: str, logger: logger.Logger) -> Dict:
+        "git show {commit_id} --name-only --pretty=format:%H%n%P%n%an%n%ct%n%s%n%B%n[MODIFIED]"
+        """
+        Example output:
+        Commit ID:      76137d3f1906af4afc18ccd62336d85cbc0c56a4
+        Parents ID:     70ce2ed39fdb4057392ca9a584e1e47938e27ef3
+        Authour:        Mr-Duo
+        Date:           1724249410
+        Subject:        stuff
+        Message:        stuff
+        [MODIFIED]
+        Modified Files: defectguard/JITCrawler/core/utils/utils.py
+        """
+
+        show_msg = self.repo.git.show(commit_id, name_only=True, pretty='format:%H%n%P%n%an%n%ct%n%s%n%B%n[MODIFIED]').splitlines()
+        files_index = show_msg.index('[MODIFIED]')
+        subject = show_msg[4]
+        head = show_msg[:5]
+        commit_msg = show_msg[5:files_index]
+
+        parent_id = head[1]
+        author = head[2]
+        commit_date = head[3]
+        commit_msg = " ".join(commit_msg)
+
+        "git show {commit_id} --pretty=format: --unified=999999999"
+        """
+        Example output:
+        diff --git a/libavcodec/riscv/h264dsp_rvv.S b/libavcodec/riscv/h264dsp_rvv.S
+        index a38bf7ef1d..0e08de43e4 100644
+        --- a/libavcodec/riscv/h264dsp_rvv.S
+        +++ b/libavcodec/riscv/h264dsp_rvv.S
+        @@ -1,332 +1,327 @@
+        [CODE CHANGES]
+        """
+
+        raw_diff_log = self.repo.git.show(commit_id, pretty='format:', unified=999999999).splitlines()
+        unfiltered_diff_log = split_diff_log(raw_diff_log)
+        diff_log = [log for log in unfiltered_diff_log if log[0][:10] == "diff --git"]
+        # logger.info(raw_diff_log)
+        commit_diff = {}
+        commit_blame = {}
+        files = []
+        for log in diff_log:
+            try:
+                files_diff = aggregator(parse_lines(log))
+            except:
+                logger.error(f"Exception {e} : {log}")
+            for file_diff in files_diff:                
+                file_name_a = (
+                    file_diff["from"]["file"]
+                    if file_diff["rename"] or file_diff["from"]["mode"] != "0000000"
+                    else file_diff["to"]["file"]
+                )
+                file_name_b = (
+                    file_diff["to"]["file"]
+                    if file_diff["rename"] or file_diff["to"]["mode"] != "0000000"
+                    else file_diff["from"]["file"]
+                )
+                if file_diff["is_binary"] or len(file_diff["content"]) == 0:
+                    continue
+
+                if file_diff["from"]["mode"] == "0000000":
+                    continue
+                
+                try:
+                    file_extension = file_name_b.rsplit(".")[1].lower()
+                except:
+                    file_extension = None
+
+                file_language = EXT2LANG.get(file_extension, None)
+                if file_language is None or file_language.lower() != self.languages.lower():
+                    continue
+
+                "git blame -t -n -l {parent_id} '{file_name_a}'"
+                """
+                Example output:
+                746f1ff36ac0d232687820fbde4e4efc79093af7   1 (Rémi Denis-Courmont 1664203942 +0300   1) /*
+                746f1ff36ac0d232687820fbde4e4efc79093af7   2 (Rémi Denis-Courmont 1664203942 +0300   2)  * Copyright © 2022 Rémi Denis-Courmont.
+                746f1ff36ac0d232687820fbde4e4efc79093af7   3 (Rémi Denis-Courmont 1664203942 +0300   3)  * Loosely based on earlier work copyrighted by Måns Rullgård, 2008.
+                746f1ff36ac0d232687820fbde4e4efc79093af7   4 (Rémi Denis-Courmont 1664203942 +0300   4)  *
+                746f1ff36ac0d232687820fbde4e4efc79093af7   5 (Rémi Denis-Courmont 1664203942 +0300   5)  * This file is part of FFmpeg.
+                """
+
+                file_blame_log = self.repo.git.blame(parent_id, file_name_a, t=True, n=True, l=True).splitlines()
+
+                if not file_blame_log:
+                    continue
+
+                file_blame = get_file_blame(file_blame_log)
+                commit_blame[file_name_b] = file_blame
+                commit_diff[file_name_b] = file_diff
+                files.append(file_name_b)
+            
+        if len(files) == 0:
+            return None
+
+        commit = {
+            "commit_id": commit_id,
+            "parent_id": parent_id,
+            "subject": subject,
+            "message": commit_msg,
+            "author": author,
+            "date": int(commit_date),
+            "files": files,
+            "diff": commit_diff,
+            "blame": commit_blame,
+        }
+        return commit
+    
+    def process_multiple_commits(self, commit_ids: List[str], worker_id: int = 0) -> List[Dict]:
+        extracted_commits_list = []
+        logger = create_log_handler(worker_id)
+        out_file = f"{self.save_path}/extracted_{self.repo_name}_{worker_id}.jsonl"
+
+        for commit_id in tqdm(commit_ids, f"Thread {worker_id}"):
+            try: 
+                extracted_commit = self.process_one_commit(commit_id, logger)
+                if extracted_commit is not None:
+                    extracted_commits_list.append(extracted_commit)
+                    append_jsonl([extracted_commit], out_file)
+            except Exception as e:
+                logger.error(f"Exception {e} - Failed to mine {commit_id}")
+                logger.error(traceback.format_exc())
+        return worker_id, extracted_commits_list
+
+    def process_parallel(self):
+        self.commits = [commit.hexsha for commit in self.repo.iter_commits()]
+        num_commits = len(self.commits)
+
+        sublist_length = num_commits // self.workers
+        if sublist_length == 0:
+            sublists = [self.commits]
+        else:
+            sublists = [self.commits[i:i + sublist_length] for i in range(0, num_commits, sublist_length)]
+        num_thread = min(self.workers, sublist_length)
+        
+        futures = []
+        results = []
+        self.logger.info("Start processing")
+        with ProcessPoolExecutor(max_workers=num_thread) as executor:
+            for thread_id in range(num_thread):
+                self.logger.info(f"Initiate thread {thread_id}")
+                futures.append(executor.submit( self.process_multiple_commits, sublists[thread_id], thread_id))
+
+            for future in as_completed(futures):
+                result = future.result()
+                self.logger.info(f"Thread {result[0]} completed!")
+                results.extend(result[1])
+
+        return results
+
+DIR_PATH = os.path.dirname(os.path.realpath(__file__))
+
+# Example usage
+if __name__ == "__main__":
+    
+    import argparse
+    parser = argparse.ArgumentParser(add_help= False)
+    parser.add_argument("--workers", type= int, default= 1, help="Number of parallel workers")
+    parser.add_argument("--language", type= str, help="Language")
+    parser.add_argument("--url", type=str, help= "Git clone url")
+    parser.add_argument("--path", type=str, help= "Local Repo path", default= f"{DIR_PATH}/input")
+
+    params = parser.parse_args()
+    miner = Miner(params)
+    miner.run()
