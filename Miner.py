@@ -253,7 +253,6 @@ class Miner:
                 results.append(result[1])
 
         final_results = list(heapq.merge(*results, key=lambda x: x["date"]))
-        del results
         return final_results
 
 # Example usage
