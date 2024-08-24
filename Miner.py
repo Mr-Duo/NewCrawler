@@ -7,6 +7,7 @@ import json
 import traceback
 import logging as logger
 import os, shutil
+import heapq
 
 from utils.aggregator import *
 from utils.line_parser import *
@@ -29,6 +30,8 @@ EXT2LANG = {
     # Add more extensions and programming languages as needed
 }
 
+DIR_PATH = os.path.dirname(os.path.realpath(__file__))
+
 class Miner:
     def __init__(self, params):
         self.url = params.url
@@ -39,7 +42,7 @@ class Miner:
 
         self.save_path = f"{DIR_PATH}/out"
         self.num_commits_per_files = 1000
-        self.logger = create_log_handler("logs_main.log")
+        self.logger = create_log_handler("logs_miner_main.log")
         self.repo_name = None
 
         
@@ -85,6 +88,7 @@ class Miner:
         else:
             out_file = f"{self.save_path}/extracted-all-{self.repo_name}.jsonl"
         save_jsonl(result, out_file)
+        return out_file
 
     def process_one_commit(self, commit_id: str, logger: logger.Logger) -> Dict:
         "git show {commit_id} --name-only --pretty=format:%H%n%P%n%an%n%ct%n%s%n%B%n[MODIFIED]"
@@ -198,7 +202,7 @@ class Miner:
     
     def process_multiple_commits(self, commit_ids: List[str], worker_id: int = 0) -> List[Dict]:
         extracted_commits_list = []
-        log_file = f"logs_{self.repo_name}_{worker_id}.log"
+        log_file = f"logs_miner_{self.repo_name}_{worker_id}.log"
         logger = create_log_handler(log_file)
         # logger.info(commit_ids)
         for commit_id in tqdm(commit_ids, f"Thread {worker_id}"):            
@@ -224,7 +228,7 @@ class Miner:
             self.commits = self.commits[self.start:]
         elif self.end is not None:
             self.commits = self.commits[:self.end]
-        
+        self.commits.reverse()        
         # self.logger.info(self.commits)
         num_commits = len(self.commits)
 
@@ -246,15 +250,14 @@ class Miner:
             for future in as_completed(futures):
                 result = future.result()
                 self.logger.info(f"Thread {result[0]} completed!")
-                results.extend(result[1])
+                results.append(result[1])
 
-        return results
-
-DIR_PATH = os.path.dirname(os.path.realpath(__file__))
+        final_results = list(heapq.merge(*results, key=lambda x: x["date"]))
+        del results
+        return final_results
 
 # Example usage
 if __name__ == "__main__":
-    
     import argparse
     parser = argparse.ArgumentParser(add_help= False)
     parser.add_argument("--workers", type= int, default= 1, help="Number of parallel workers")

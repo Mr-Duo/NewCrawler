@@ -1,6 +1,9 @@
 from typing import List, Dict
 import logging as log
 import json
+import tempfile
+import heapq
+import os
 import uuid
 
 def create_log_handler(name: str) -> log.Logger:
@@ -35,18 +38,24 @@ def save_jsonl(data: List[Dict], output_file: str):
         with open(output_file, 'w') as f:
             for d in data:
                 f.write(json.dumps(d) + '\n')
-        log.info(f"Successfully saved to {output_file}")
     except Exception as e:
-        log.error(f"Exception {e} - Trying to save to {output_file}")
+        raise e
 
 def append_jsonl(data: List[Dict], output_file: str):
     try:
         with open(output_file, 'a') as f:
             for d in data:
                 f.write(json.dumps(d) + '\n')
-        log.info(f"Successfully appended to {output_file}")
     except Exception as e:
-        log.error(f"Exception {e} - Trying to append to {output_file}")
+        raise e
+
+def load_jsonl(input_file: str):
+    try:
+        with open(input_file, "r") as f:
+            for line in f:
+                yield(json.loads(line))
+    except Exception as e:
+        raise e
 
 def generate_id():
     return uuid.uuid1()
