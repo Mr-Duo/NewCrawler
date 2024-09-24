@@ -147,5 +147,5 @@ if __name__ == "__main__":
     step = 30000
     for st in range(0, 1530000, step):
         ed = st + step
-        file_path = path.format(st, ed)
+        file_path = path.format(st, ed, st, ed)
         ext.run(file_path)
