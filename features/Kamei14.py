@@ -4,12 +4,15 @@ import traceback
 import numpy as np
 from typing import Dict, List, Tuple, Set
 
+from utils.utils import save_json, load_json
+
 STRONG_VUL = re.compile(r'(?i)(denial.of.service|remote.code.execution|\bopen.redirect|OSVDB|\bXSS\b|\bReDoS\b|\bNVD\b|malicious|x−frame−options|attack|cross.site|exploit|directory.traversal|\bRCE\b|\bdos\b|\bXSRF\b|clickjack|session.fixation|hijack|advisory|insecure|security|\bcross−origin\b|unauthori[z|s]ed|infinite.loop)')
 MEDIUM_VUL =re.compile(r'(?i)(authenticat(e|ion)|bruteforce|bypass|constant.time|crack|credential|\bDoS\b|expos(e|ing)|hack|harden|injection|lockout|overflow|password|\bPoC\b|proof.of.concept|poison|privelage|\b(in)?secur(e|ity)|(de)?serializ|spoof|timing|traversal)')
 
 class Kamei14:
-    def __init__(self, logger: logging.Logger):
+    def __init__(self, logger: logging.Logger, path: str=None):
         self.logger = logger
+
         self.keep_track_authors = {}
         """
         {
@@ -24,12 +27,14 @@ class Kamei14:
         """
         {
             file_name: {
-                "author": set(author name)
+                "author": list(author name)
                 "unique changes": int
                 "last modified date": int(datetime) 
             }
         }
         """
+
+        self.load_state(path)
 
     def process(self, commit: Dict) -> Dict:
         try:
@@ -46,7 +51,7 @@ class Kamei14:
         exp, rexp, sexp = self.experience_features(commit["author"], commit["date"], ns)
 
         return {
-            "_id": commit["commit_id"],
+            "commit_id": commit["commit_id"],
             "date": commit["date"],
             "ns": len(ns),
             "nd": len(nd),
@@ -70,18 +75,18 @@ class Kamei14:
             self.keep_track_authors[commit["author"]] = {}
             author_record = self.keep_track_authors[commit["author"]]
 
-        
         for file_name in commit["files"]:
             file_record = self.keep_track_files.get(file_name, None)
             if file_record is None:
                 self.keep_track_files[file_name] = {
-                    "authors": set(commit["author"]),
+                    "authors": [commit["author"]],
                     "unique changes": 1,
                     "last modified date": commit["date"],
                     "time interval": 0
                 }
             else:
-                file_record["authors"].update(commit["author"])
+                file_record["authors"].append(commit["author"])
+                file_record["authors"] = list(set(file_record["authors"]))
                 file_record["unique changes"] += 1
                 file_record["time interval"] = commit["date"] - file_record["last modified date"]
                 file_record["last modified date"] = commit["date"]
@@ -172,5 +177,12 @@ class Kamei14:
             sexp += 1 if sub in ns else 0
 
         return exp, rexp, sexp
+    
+    def save_state(self, path: str) -> None:
+        save_json([self.keep_track_authors, self.keep_track_files], f"{path}/Kamei14_state_dict.json")
 
-
+    def load_state(self, path: str) -> None:
+        try:
+            self.keep_track_authors, self.keep_track_files = load_json(f"{path}/Kamei14_state_dict.json")
+        except:
+            pass
