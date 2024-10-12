@@ -4,15 +4,6 @@ import re, os
 from typing import List, Set, Tuple
 from utils.utils import *
 
-def find_files(regex_pattern: str, folder: str) -> List[str]:
-    pattern = re.compile(regex_pattern)
-    matching_files = []
-    for root, _, files in os.walk(folder):
-        for file in files:
-            if pattern.match(file):
-                matching_files.append(os.path.join(root, file))
-    return matching_files
-
 def get_value(file: str, key: str) -> Set[str]:
     out = set()
     for line in load_jsonl(file):
@@ -102,14 +93,14 @@ def to_dataset(setup: str, project: str, out_folder: str, label1s: List[List], l
     for dataset, label1, label0 in zip(datasets, label1s, label0s):
         log.info(f"{dataset} {len(label1)} {len(label0)}")
         
-        # out_file = f"{out_folder}/unsampling/{setup}-{project}-features-{dataset}.jsonl" if dataset == "train" else f"{out_folder}/{setup}-{project}-features-{dataset}.jsonl"
-        # to_file(find_files(FEATURES_PATERN, f"{DEFAULT_EXTRACTED_OUTPUT}/{project}"), out_file, label1, label0)
+        out_file = f"{out_folder}/unsampling/{setup}-{project}-features-{dataset}.jsonl" if dataset == "train" else f"{out_folder}/{setup}-{project}-features-{dataset}.jsonl"
+        to_file(find_files(FEATURES_PATERN, f"{DEFAULT_EXTRACTED_OUTPUT}/{project}"), out_file, label1, label0)
         
-        # out_file = f"{out_folder}/unsampling/{setup}-{project}-simcom-{dataset}.jsonl" if dataset == "train" else f"{out_folder}/{setup}-{project}-simcom-{dataset}.jsonl"
-        # to_file(find_files(SIMCOM_PATERN, f"{DEFAULT_EXTRACTED_OUTPUT}/{project}"), out_file, label1, label0)
+        out_file = f"{out_folder}/unsampling/{setup}-{project}-simcom-{dataset}.jsonl" if dataset == "train" else f"{out_folder}/{setup}-{project}-simcom-{dataset}.jsonl"
+        to_file(find_files(SIMCOM_PATERN, f"{DEFAULT_EXTRACTED_OUTPUT}/{project}"), out_file, label1, label0)
         
-        # out_file = f"{out_folder}/unsampling/{setup}-{project}-deepjit-{dataset}.jsonl" if dataset == "train" else f"{out_folder}/{setup}-{project}-deepjit-{dataset}.jsonl"
-        # to_file(find_files(DEEPJIT_PATERN, f"{DEFAULT_EXTRACTED_OUTPUT}/{project}"), out_file, label1, label0)
+        out_file = f"{out_folder}/unsampling/{setup}-{project}-deepjit-{dataset}.jsonl" if dataset == "train" else f"{out_folder}/{setup}-{project}-deepjit-{dataset}.jsonl"
+        to_file(find_files(DEEPJIT_PATERN, f"{DEFAULT_EXTRACTED_OUTPUT}/{project}"), out_file, label1, label0)
         
         out_file = f"{out_folder}/unsampling/{setup}-{project}-vcc-features-{dataset}.jsonl" if dataset == "train" else f"{out_folder}/{setup}-{project}-vcc-features-{dataset}.jsonl"
         to_file(find_files(VCCFINDER_PATERN, f"{DEFAULT_EXTRACTED_OUTPUT}/{project}"), out_file, label1, label0)

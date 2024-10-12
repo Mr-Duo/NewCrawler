@@ -104,3 +104,12 @@ def split_list(lst: List, part: int) -> List[List]:
 
 def generate_id():
     return uuid.uuid1()
+
+def find_files(regex_pattern: str, folder: str) -> List[str]:
+    pattern = re.compile(regex_pattern)
+    matching_files = []
+    for root, _, files in os.walk(folder):
+        for file in files:
+            if pattern.match(file):
+                matching_files.append(os.path.join(root, file))
+    return matching_files
