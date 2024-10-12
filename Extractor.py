@@ -254,9 +254,12 @@ if __name__ == "__main__":
     repo = "linux"
     cfg = get_cfg(repo, False)
     ext = Extractor(cfg)
+    print(jsonl_files[0])
     ext.run(jsonl_files[0])
-    
+    print("==========================================")
     cfg = get_cfg(repo, True)
     ext = Extractor(cfg)
     for i in range(1, len(jsonl_files)):
+        print(jsonl_files[i])
         ext.run(jsonl_files[i])
+        print("==========================================")
