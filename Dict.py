@@ -1,4 +1,4 @@
-from multiprocessing.managers import BaseManager
+from utils.utils import *
 
 class Dict(object):
     def __init__(self, lower=False):
@@ -102,21 +102,18 @@ class Dict(object):
             newDict.add(self.idxToLabel[i])
 
         return newDict
-
-class DictManager(BaseManager): 
-    pass
-
-
-def create_dict(messages, codes):
-    msg_dict = Dict(lower=True)
-    code_dict = Dict(lower=True)
-    for mes in messages:
-        for word in mes.split():
-            msg_dict.add(word)
-    for code in codes:
-        for line in code:
-            for word in line.split():
-                code_dict.add(word)
-    msg_dict.prune(100000)
-    code_dict.prune(100000)
-    return [msg_dict.get_dict(), code_dict.get_dict()]
+    
+    def save_state(self, path):
+        save_json([
+            self.labelToIdx,
+            self.idxToLabel,
+            self.frequencies,
+            self.lower,
+            self.special
+        ], f"{path}/dict_state_dict.json")
+        
+    def load_state(self, path):
+        try:
+            self.labelToIdx, self.idxToLabel, self. frequencies, self.lower, self.special = load_json(f"{path}/dict_state_dict.json")
+        except FileNotFoundError as e:
+            self.logger.error(f"{path} : {e}")

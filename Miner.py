@@ -30,8 +30,6 @@ EXT2LANG = {
     # Add more extensions and programming languages as needed
 }
 
-DIR_PATH = os.path.dirname(os.path.realpath(__file__))
-
 class Miner:
     def __init__(self, params):
         self.url = params.url
@@ -39,13 +37,11 @@ class Miner:
         self.workers = params.workers
         self.start = params.start
         self.end = params.end
-
-        self.save_path = f"{DIR_PATH}/out"
+        
         self.num_commits_per_files = 1000
         self.logger = create_log_handler("logs_miner_main.log")
         self.repo_name = None
 
-        
         if self.url is not None:
             if not os.path.exists(self.repo_path):
                 os.mkdir(self.repo_path)
@@ -72,7 +68,11 @@ class Miner:
 
         if self.repo_name is None:
             self.repo_name = self.repo.remotes.origin.url.rstrip('/').split('/')[-1].replace('.git', '')
-
+        
+        self.save_path = f"{DEFAULT_OUTPUT}/{self.repo_name}"        
+        if not os.path.exists(self.save_path):
+            os.mkdir(self.save_path)
+    
     def run(self):
         if not os.path.exists(self.save_path):
             os.makedirs(self.save_path)
@@ -231,12 +231,7 @@ class Miner:
         self.commits.reverse()        
         # self.logger.info(self.commits)
         num_commits = len(self.commits)
-
-        sublist_length = num_commits // self.workers
-        if sublist_length == 0:
-            sublists = [self.commits]
-        else:
-            sublists = [self.commits[i:i + sublist_length] for i in range(0, num_commits, sublist_length)]
+        sublists = split_list(self.commits, self.workers)
         num_thread = self.workers
         
         futures = []
@@ -262,7 +257,8 @@ if __name__ == "__main__":
     parser.add_argument("--workers", type= int, default= 1, help="Number of parallel workers")
     parser.add_argument("--language", type= str, help="Language")
     parser.add_argument("--url", type=str, help= "Git clone url")
-    parser.add_argument("--path", type=str, help= "Local Repo path", default= f"{DIR_PATH}/input")
+    parser.add_argument("--input_path", type=str, help= "Parent directory of input repository", default= DEFAULT_INPUT)
+    parser.add_argument("--output_path", type=str, help= "Output directory", default= DEFAULT_OUTPUT)
     parser.add_argument("--start", type=int, default=None, help= "First commit index")
     parser.add_argument("--end", type=int, default=None, help="Last commit index")
 

@@ -1,13 +1,45 @@
 from typing import List, Dict
 import logging as log
-import json
-import tempfile
-import heapq
-import os
-import uuid
+import json, os, uuid
+from pathlib import Path
+
+PARENT_DIR = Path(__file__).parent.parent
+DEFAULT_LOG = f"{PARENT_DIR}/log"
+DEFAULT_INPUT = f'{PARENT_DIR}/input'
+DEFAULT_EXTRACTED_OUTPUT = f'{PARENT_DIR}/output/extracted'
+DEFAULT_DATA_OUTPUT = f"{PARENT_DIR}/output/dataset"
+
+EXTRACTED_FILE_NAME_PATERN = "{}-extracted-all-[a-zA-Z0-9]+(-start-[0-9]+)?(-end-[0-9]+)?[.]jsonl$"
+SIMCOM_PATERN = EXTRACTED_FILE_NAME_PATERN.format("simcom")
+DEEPJIT_PATERN = EXTRACTED_FILE_NAME_PATERN.format("deepjit")
+SECURITY_PATERN = EXTRACTED_FILE_NAME_PATERN.format("security")
+FEATURES_PATERN = EXTRACTED_FILE_NAME_PATERN.format("features")
+VCCFINDER_PATERN = EXTRACTED_FILE_NAME_PATERN.format("vcc-features")
+
+TRUSTED_LABEL_PATERN = "^T_{}[.]jsonl$"
+SEMI_TRUSTED_LABEL_PATERN = "^ST_{}[.]jsonl$"
+
+if not os.path.exists(DEFAULT_EXTRACTED_OUTPUT):
+    os.mkdir(DEFAULT_EXTRACTED_OUTPUT)
+if not os.path.exists(DEFAULT_DATA_OUTPUT):
+    os.mkdir(DEFAULT_DATA_OUTPUT)
+
+def create_console_log_handler(name: str) -> log.Logger:  
+    logger = log.getLogger(name=name)
+    logger.setLevel(log.INFO) 
+    consoleHandler = log.StreamHandler() 
+    consoleHandler.setLevel(log.INFO)
+    formatter = log.Formatter('%(asctime)s :: %(funcName)s - %(levelname)s :: %(message)s')
+    consoleHandler.setFormatter(formatter)
+    log.getLogger('pydriller').setLevel(log.WARNING)
+    log.info(f"Logging initialized")
+    return logger
 
 def create_log_handler(name: str) -> log.Logger:
-    log_filename = f'log/{name}'    
+    if not os.path.exists(DEFAULT_LOG):
+        os.mkdir(DEFAULT_LOG)
+        
+    log_filename = f'{DEFAULT_LOG}/{name}'    
     logger = log.getLogger(name=name)
     logger.setLevel(log.INFO)  
     fileHandler = log.FileHandler(log_filename)
@@ -20,57 +52,55 @@ def create_log_handler(name: str) -> log.Logger:
     return logger
 
 def save_json(data: Dict, output_file: str) -> None:
-    try:
-        with open(output_file, 'w') as f:
-            json.dump(data, f)
-    except Exception as e:
-        raise e
+    with open(output_file, 'w') as f:
+        json.dump(data, f)
 
 def load_json(file_path: str) -> Dict:
-    try:
-        with open(file_path, "r") as f:
-            out_dict = json.load(f)
-        return out_dict
-    except Exception as e:
-        raise e
+    with open(file_path, "r") as f:
+        out_dict = json.load(f)
+    return out_dict
 
 def save_jsonl(data: List[Dict], output_file: str) -> None:
-    try:
-        with open(output_file, 'w') as f:
-            for d in data:
-                f.write(json.dumps(d) + '\n')
-    except Exception as e:
-        raise e
+    with open(output_file, 'w') as f:
+        for d in data:
+            f.write(json.dumps(d) + '\n')
 
 def append_jsonl(data: List[Dict], output_file: str) -> None:
-    try:
-        with open(output_file, 'a') as f:
-            for d in data:
-                f.write(json.dumps(d) + '\n')
-    except Exception as e:
-        raise e
+    with open(output_file, 'a') as f:
+        for d in data:
+            f.write(json.dumps(d) + '\n')
 
 def load_jsonl(file_path: str) -> Dict:
-    try:
-        with open(file_path, "r") as f:
-            for line in f:
-                yield json.loads(line)
-    except Exception as e:
-        raise e
+    with open(file_path, "r") as f:
+        for line in f:
+            yield json.loads(line)
+
+def read_jsonl(file_path: str) -> List[Dict]:
+    data = []
+    with open(file_path, "r") as f:
+        for line in f:
+            data.append(json.loads(line))
+    return data
 
 def load_chunk_jsonl(file_path: str, start: int, end: int) -> Dict:
-    try:
-        with open(file_path, 'r') as file:
-            file.seek(start)
-            if start != 0:
-                file.readline() 
-            while file.tell() < end:
-                line = file.readline().strip()
-                if not line:
-                    break
-                yield json.loads(line)
-    except Exception as e: 
-        raise e
+    with open(file_path, 'r') as file:
+        file.seek(start)
+        if start != 0:
+            file.readline() 
+        while file.tell() < end:
+            line = file.readline().strip()
+            if not line:
+                break
+            yield json.loads(line)
+
+def split_list(lst: List, part: int) -> List[List]:
+    if len(lst) < part:
+        return [lst]
+    chunk_size = len(lst) // part
+    remainder = len(lst) % part
+    result = [lst[i*chunk_size:(i+1)*chunk_size] for i in range(n)]
+    result[-1].extend(lst[part*chunk_size:])
+    return result
 
 def generate_id():
     return uuid.uuid1()

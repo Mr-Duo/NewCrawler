@@ -4,13 +4,13 @@ import traceback
 import numpy as np
 from typing import Dict, List, Tuple, Set
 
-from utils.utils import save_json, load_json
+from utils.utils import save_json, load_json, DEFAULT_EXTRACTED_OUTPUT
 
 STRONG_VUL = re.compile(r'(?i)(denial.of.service|remote.code.execution|\bopen.redirect|OSVDB|\bXSS\b|\bReDoS\b|\bNVD\b|malicious|x−frame−options|attack|cross.site|exploit|directory.traversal|\bRCE\b|\bdos\b|\bXSRF\b|clickjack|session.fixation|hijack|advisory|insecure|security|\bcross−origin\b|unauthori[z|s]ed|infinite.loop)')
 MEDIUM_VUL =re.compile(r'(?i)(authenticat(e|ion)|bruteforce|bypass|constant.time|crack|credential|\bDoS\b|expos(e|ing)|hack|harden|injection|lockout|overflow|password|\bPoC\b|proof.of.concept|poison|privelage|\b(in)?secur(e|ity)|(de)?serializ|spoof|timing|traversal)')
 
 class Kamei14:
-    def __init__(self, logger: logging.Logger, path: str=None):
+    def __init__(self, logger: logging.Logger):
         self.logger = logger
 
         self.keep_track_authors = {}
@@ -33,15 +33,14 @@ class Kamei14:
             }
         }
         """
-
-        self.load_state(path)
-
+        
     def process(self, commit: Dict) -> Dict:
         try:
             self.update(commit)
         except Exception as e:
             self.logger.error(e)
             self.logger.error(traceback.format_exc())
+            exit()
         
         # self.logger.info(self.keep_track_authors)
         fix = self.is_fixing_commit(commit["message"])
@@ -145,10 +144,7 @@ class Kamei14:
     def is_fixing_commit(self, file_message: str) -> int:
         m = STRONG_VUL.search(file_message)
         n = MEDIUM_VUL.search(file_message)
-        if m or n:
-            return 1
-        else:
-            return 0
+        return 1 if m or n else 0 
 
     def file_features (self, file_names: List[str]) -> Tuple[int, int, int]:
         ndev, nuc, ages = set(), 0, []
@@ -184,5 +180,5 @@ class Kamei14:
     def load_state(self, path: str) -> None:
         try:
             self.keep_track_authors, self.keep_track_files = load_json(f"{path}/Kamei14_state_dict.json")
-        except:
-            pass
+        except FileNotFoundError as e:
+            self.logger.error(f"{path} : {e}")

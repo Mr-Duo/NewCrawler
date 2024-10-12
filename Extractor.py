@@ -5,10 +5,9 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from multiprocessing import Manager
 
 from features.Kamei14 import *
+from features.VCCFinder import *
 from utils.utils import *
-from Dict import Dict, DictManager
-
-DIR_PATH = os.path.dirname(os.path.realpath(__file__))
+from Dict import Dict
 
 def split_sentence(sentence):
     sentence = sentence.replace('.', ' . ').replace('_', ' ').replace('@', ' @ ')\
@@ -23,44 +22,63 @@ def split_sentence(sentence):
 
 class Extractor:
     def __init__(self, params):
-        self.repo_name = params.repo_name if params.repo_name else None
-        self.discontinue_run = params.discontinue_run if params.discontinue_run else False
+        self.repo_name = None if params.repo_name is None else params.repo_name
+        self.continue_run = False if params.continue_run is None else params.continue_run
         self.logger = create_log_handler("logs_extractor_main.log")
-        self.save_path = f"{DIR_PATH}/out/{self.repo_name}"
+        self.save_path = f"{DEFAULT_EXTRACTED_OUTPUT}/{self.repo_name}" if params.save_path is None else params.save_path 
 
         if not os.path.exists(self.save_path):
             os.mkdir(self.save_path)
     
     def run(self, path: str):
-        features_extractor = Kamei14(self.logger)
         self.file_path = path
         self.file_name = self.file_path.split('/')[-1]
         print(f"\tProcess: {self.file_name}")
         futures = []
         with ProcessPoolExecutor(max_workers=2) as executor:
-            executor.submit(self.process_feature, features_extractor)
+            executor.submit(self.process_feature_Kamei14)
             executor.submit(self.process_commit)
         for future in as_completed(futures):
             pass
 
-    def process_feature(self, features_extractor):
+    def process_feature_Kamei14(self):
         try:
+            features_extractor = Kamei14(self.logger)
+            if self.continue_run:
+                features_extractor.load_state(self.save_path)
+                
             iterator = load_jsonl(self.file_path)
-            for commit in tqdm(iterator, "Processing Features:"):
+            for commit in tqdm(iterator, "Processing Kamei14 Features:"):
                 line = [features_extractor.process(commit)]
                 append_jsonl(line, f"{self.save_path}/features-{self.file_name}")
                 if line[0]["fix"]:
                     append_jsonl(
                         [{
-                            "fix_commit_hash": line[0]["commit_id"],
-                            "repo_name": self.repo_name
+                            "commit_id": line[0]["commit_id"],
+                            "Repository": self.repo_name
                         }], 
                         f"{self.save_path}/security-{self.file_name}"
                     )
-            if self.discontinue_run:
-                features_extractor.save_state(self.save_path)
+            features_extractor.save_state(self.save_path)
         except Exception as e:
-            print(traceback.format_exc())
+            print(line)
+            self.logger.error(traceback.format_exc())
+            exit()
+            
+    def process_feature_VCCFinder(self):
+        try:
+            features_extractor = VCCFinder(self.logger)
+            if self.continue_run:
+                features_extractor.load_state(self.save_path)
+                
+            iterator = load_jsonl(self.file_path)
+            for commit in tqdm(iterator, "Processing VCCFinder Features:"):
+                features_extractor.absorb(commit)
+            features_extractor.save_state(self.save_path)
+            features_extractor.release(f"{self.save_path}/vcc-features-{self.file_name}")
+        except Exception as e:
+            print(line)
+            self.logger.error(traceback.format_exc())
             exit()
 
     def process_one_commit(self, commit):
@@ -73,38 +91,44 @@ class Extractor:
         deleted_codes = []
         patch_codes = []
         for file in commit['files']:
-            added, deleted, patch = [], [], []
+            added, deleted = [], []
             for hunk in commit["diff"][file]["content"]:
+                patch = []
                 if "ab" in hunk:
                     continue
+                patch.append("added")
                 if "a" in hunk:
                     for line in hunk["a"]:
                         line = get_std_str(line)
                         deleted_codes.append(line)
                         patch.append(line)
+                patch.append("removed")
                 if "b" in hunk:
                     for line in hunk["b"]:
                         line = get_std_str(line)
                         added_codes.append(line)
                         patch.append(line)
-            patch_codes.append(" ".join(patch))
+                patch_codes.append(" ".join(patch))
         return id, message, added_codes, deleted_codes, patch_codes
 
     def process_commit(self):
-        msg_dict = Dict(lower=True)
-        code_dict = Dict(lower=True)
+        msg_dict, code_dict = Dict(lower=True), Dict(lower=True)
+        if self.continue_run:
+            msg_dict.load_state(self.save_path)
+            code_dict.load_state(self.save_path)
+            
         iterator = load_jsonl(self.file_path)
         for commit in tqdm(iterator, "Processing Commits:"):
             id, message, added_codes, deleted_codes, patch_codes = self.process_one_commit(commit)
             deepjit = {
                 "commit_id": id,
                 "messages": message,
-                "code_change": patch_codes
+                "code_change": "added "+" ".join(added_codes)+" removed "+" ".join(deleted_codes)+"\n"
             }
             simcom = {
                 "commit_id": id,
                 "messages": message,
-                "code_change": "Removed: "+'\\n'.join(deleted_codes)+" Added: "+'\\n'.join(added_codes)+" "
+                "code_change": "\n".join(patch_codes)
             }
             try:
                 append_jsonl([deepjit], f"{self.save_path}/deepjit-{self.file_name}")
@@ -115,10 +139,18 @@ class Extractor:
                 for line in patch_codes:
                     for word in line.split():
                         code_dict.add(word)
+                    
             except Exception as e:
                 self.logger.error(e)
-                self.logger.error(traceback.format_exc())
-        save_jsonl([msg_dict.get_dict(), code_dict.get_dict()], f"{self.save_path}/dict-{self.file_name}")
+                self.logger.error(traceback.format_exc()) 
+                exit()
+                
+        msg_dict.save_state(self.save_path)
+        code_dict.save_state(self.save_path)
+        
+        pruned_msg_dict = msg_dict.prune(100000)
+        pruned_code_dict = code_dict.prune(100000)
+        save_jsonl([pruned_msg_dict.get_dict(), pruned_code_dict.get_dict()], f"{self.save_path}/dict-{self.repo_name}.jsonl")   
 
 
 # Example usage
@@ -136,16 +168,59 @@ class Extractor:
 
 if __name__ == "__main__":
     from argparse import Namespace
-    cfg = {
-        "repo_name": "linux",
-        "discontinue_run": True
-    }
-    cfg = Namespace(**cfg)
-    ext = Extractor(cfg)
+    
+    def get_cfg(repo, continue_run):
+        cfg = {
+            "repo_name": repo,
+            "continue_run": continue_run,
+            "save_path": None
+        }
+        cfg = Namespace(**cfg)
+        return cfg
 
-    path = "/data1/duong/KaggleOutputPull/linux-{}-{}/extracted-all-linux-start-{}-end-{}.jsonl"
-    step = 30000
-    for st in range(0, 1530000, step):
+
+    # path = "E:/ALL_DATA/raw_data/FFmpeg/extracted-all-{}-start-{}-end-{}.jsonl"
+    # repo = "FFmpeg"
+    # first = 4800
+    # end = 24000
+    # step = 4800
+    
+    # cfg = get_cfg(repo, False)
+    # ext = Extractor(cfg)
+    # file_path = path.format(repo, 0, step)
+    # ext.run(file_path)
+    
+    # cfg = get_cfg(repo, True)
+    # ext = Extractor(cfg)
+    # for st in range(first, end, step):
+    #     ed = st + step
+    #     file_path = path.format(repo, st, ed)
+    #     ext.run(file_path)
+        
+    
+    # first = 24000
+    # end = 120000
+    # step = 24000
+
+    # for st in range(first, end, step):
+    #     ed = st + step
+    #     file_path = path.format(repo, st, ed)
+    #     ext.run(file_path)
+    
+    path = "E:/ALL_DATA/raw_data/OpenSSL/extracted-all-{}-start-{}-end-{}.jsonl"
+    repo = "OpenSSL"
+    first = 7200
+    end = 36000
+    step = 7200
+    
+    cfg = get_cfg(repo, False)
+    ext = Extractor(cfg)
+    file_path = path.format(repo, 0, step)
+    ext.run(file_path)
+    
+    cfg = get_cfg(repo, True)
+    ext = Extractor(cfg)
+    for st in range(first, end, step):
         ed = st + step
-        file_path = path.format(st, ed, st, ed)
+        file_path = path.format(repo, st, ed)
         ext.run(file_path)
