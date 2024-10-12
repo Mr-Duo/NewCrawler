@@ -231,9 +231,8 @@ if __name__ == "__main__":
         # Traverse the first level of directories
         for subdir, dirs, files in os.walk(root_dir):
             print(subdir, dirs, files)
-            if subdir.count(os.sep) - root_dir.count(os.sep) == 1:  # Ensure we're at the 2nd level
                 # Add .jsonl files in the subdirectories (leaves)
-                jsonl_files += [os.path.join(subdir, file) for file in files if file.endswith('.jsonl')]
+            jsonl_files += [os.path.join(subdir, file) for file in files if file.endswith('.jsonl')]
         return jsonl_files
     
     def extract_number1(filename):
