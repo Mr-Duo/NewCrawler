@@ -249,6 +249,7 @@ if __name__ == "__main__":
     # Example usage
     root_directory = "../KaggleOutputPull"
     jsonl_files = fetch_jsonl_files(root_directory)
+    print(jsonl_files)
     jsonl_files = sort_files_by_number1(jsonl_files)
     
     repo = "linux"
