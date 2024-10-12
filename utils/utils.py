@@ -20,9 +20,9 @@ TRUSTED_LABEL_PATERN = "^T_{}[.]jsonl$"
 SEMI_TRUSTED_LABEL_PATERN = "^ST_{}[.]jsonl$"
 
 if not os.path.exists(DEFAULT_EXTRACTED_OUTPUT):
-    os.mkdir(DEFAULT_EXTRACTED_OUTPUT)
+    os.makedirs(DEFAULT_EXTRACTED_OUTPUT)
 if not os.path.exists(DEFAULT_DATA_OUTPUT):
-    os.mkdir(DEFAULT_DATA_OUTPUT)
+    os.makedirs(DEFAULT_DATA_OUTPUT)
 
 def create_console_log_handler(name: str) -> log.Logger:  
     logger = log.getLogger(name=name)
