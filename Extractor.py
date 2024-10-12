@@ -237,7 +237,7 @@ if __name__ == "__main__":
     
     def extract_number1(filename):
         # Regular expression to extract 'number1' from filenames of the format 'a-number1-b-number2.jsonl'
-        match = re.search(r'.+start-(\d+)-\d+\.jsonl', filename)
+        match = re.search(r'start-(\d+)-.+\.jsonl', filename)
         if match:
             return int(match.group(1))  # Convert number1 to an integer for sorting
         return None
@@ -249,8 +249,9 @@ if __name__ == "__main__":
     # Example usage
     root_directory = "../KaggleOutputPull"
     jsonl_files = fetch_jsonl_files(root_directory)
-    print(jsonl_files)
     jsonl_files = sort_files_by_number1(jsonl_files)
+    print(jsonl_files[0])
+    print(jsonl_files[1])
     
     repo = "linux"
     cfg = get_cfg(repo, False)
