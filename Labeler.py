@@ -110,7 +110,7 @@ if __name__ == "__main__":
     log.info("Start!!")
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input_folder", type=str, default="input/label")
+    parser.add_argument("--input_folder", type=str, default="label")
     parser.add_argument("--output_folder", type=str, default=None)
     parser.add_argument("--project", type=str, required=True)
     params = parser.parse_args()
