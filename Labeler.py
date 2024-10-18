@@ -110,7 +110,7 @@ if __name__ == "__main__":
     log.info("Start!!")
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input_folder", type=str, default="E:/ALL_DATA")
+    parser.add_argument("--input_folder", type=str, default="input/label")
     parser.add_argument("--output_folder", type=str, default=None)
     parser.add_argument("--project", type=str, required=True)
     params = parser.parse_args()
@@ -138,7 +138,7 @@ if __name__ == "__main__":
     non_VIC, security = get_non_VIC_and_security(feature_files, VFC, VIC)
     log.info("Complete get nonVIC")
     if not os.path.exists(f"{output_folder}/UNSPLIT"):
-        os.mkdir(output_folder)
+        os.mkdir(f"{output_folder}/UNSPLIT")
     assign_date(feature_files, f"{output_folder}/UNSPLIT/VIC.jsonl", VIC)
     assign_date(feature_files, f"{output_folder}/UNSPLIT/VFC.jsonl", VFC)
     assign_date(feature_files, f"{output_folder}/UNSPLIT/non_VIC.jsonl", non_VIC)
