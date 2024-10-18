@@ -108,7 +108,7 @@ def to_dataset(project: str, out_folder: str, label1s: List[List[List]], label0s
     
     log.info("Dataset!")
     for part in ["features", "simcom", "deepjit", "vcc-features"]:
-        for file in input_files:
+        for file in input_files[part]:
             with tqdm(desc= file) as bar:
                 for line in load_jsonl(file):
                     for setup in range(5):
