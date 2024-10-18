@@ -13,6 +13,7 @@ def get_value(file: str, key: str) -> Set[str]:
 def get_VFC_VIC(label_files: List[str]) -> (Set[str], Set[str]):
     VFC, VIC = set(), set()
     for label_file in label_files:
+        print(label_file)
         for line in load_jsonl(label_file):
             VFC.add(line["VFC"])
             VIC.update(line["VIC"])
