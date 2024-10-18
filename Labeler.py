@@ -112,7 +112,7 @@ def to_dataset(project: str, out_folder: str, label1s: List[List[List]], label0s
             log.info(file)
             for line in load_jsonl(file):
                 for setup in range(5):
-                    for dataset, label0, label1 in zip(datasets, label0s, label1s):
+                    for dataset, label0, label1 in zip(datasets, label0s[setup], label1s[setup]):
                         if line["commit_id"] in label0:
                             line["label"] = 0
                             append_jsonl([line], output_files[part][dataset][setup])
