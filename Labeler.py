@@ -109,17 +109,16 @@ def to_dataset(project: str, out_folder: str, label1s: List[List[List]], label0s
     log.info("Dataset!")
     for part in ["features", "simcom", "deepjit", "vcc-features"]:
         for file in input_files[part]:
-            with tqdm(desc= file) as bar:
-                for line in load_jsonl(file):
-                    for setup in range(5):
-                        for dataset, label0, label1 in zip(datasets, label0s, label1s):
-                            if line["commit_id"] in label0:
-                                line["label"] = 0
-                                append_jsonl([line], output_files[part][dataset][setup])
-                            elif line["commit_id"] in label1:
-                                line["label"] = 1
-                                append_jsonl([line], output_files[part][dataset][setup]) 
-                    bar.update(1)                  
+            log.info(file)
+            for line in load_jsonl(file):
+                for setup in range(5):
+                    for dataset, label0, label1 in zip(datasets, label0s, label1s):
+                        if line["commit_id"] in label0:
+                            line["label"] = 0
+                            append_jsonl([line], output_files[part][dataset][setup])
+                        elif line["commit_id"] in label1:
+                            line["label"] = 1
+                            append_jsonl([line], output_files[part][dataset][setup])                                      
      
 def check_before_run(output_folder: str) -> bool:
     if not os.path.exists(f"{output_folder}/UNSPLIT/VIC.jsonl"):
