@@ -108,6 +108,7 @@ def to_dataset(project: str, out_folder: str, label1s: List[List[List]], label0s
         for part in ["features", "simcom", "deepjit", "vcc-features"]
     }
     
+    log.info("Dataset!")
     for part in ["features", "simcom", "deepjit", "vcc-features"]:
         for file in input_files:
             with tqdm(desc= file) as bar:
@@ -192,13 +193,14 @@ if __name__ == "__main__":
     date = [(v[0]["date"], v[-1]["date"]) for v in VIC]
     VFC = split_by_date(VFC, date)
     non_VIC = split_by_date(non_VIC, date)
-    
+    log.info("Splitted")
     VIC = de_date(VIC)
     VFC = de_date(VFC)
     non_VIC = de_date(non_VIC)
     non_sec_non_VIC = [[elem for elem in sublist if elem not in security] for sublist in non_VIC]
     non_sec_VFC = [[elem for elem in sublist if elem not in security] for sublist in VFC]
     
+    log.info("Fetch security commit")
     label0s, label1s = [], []
     
     label0s[0], label1s[0] = VIC, VFC
