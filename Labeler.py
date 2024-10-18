@@ -197,17 +197,23 @@ if __name__ == "__main__":
     VIC = de_date(VIC)
     VFC = de_date(VFC)
     non_VIC = de_date(non_VIC)
-    non_sec_non_VIC = [[elem for elem in sublist if elem not in security] for sublist in non_VIC]
-    non_sec_VFC = [[elem for elem in sublist if elem not in security] for sublist in VFC]
+    
+    if not params.continue_run or not os.path.exists(f"{output_folder}/UNSPLIT/nonSECnonVIC.jsonl"):
+        non_sec_non_VIC = [[elem for elem in sublist if elem not in security] for sublist in non_VIC]
+        save_jsonl(non_sec_non_VIC, f"{output_folder}/UNSPLIT/nonSECnonVIC.jsonl")
+    else:
+        non_sec_non_VIC = read_jsonl(f"{output_folder}/UNSPLIT/nonSECnonVIC.jsonl")
+        
+    if not params.continue_run or not os.path.exists(f"{output_folder}/UNSPLIT/nonSECVFC.jsonl"):
+        non_sec_VFC = [[elem for elem in sublist if elem not in security] for sublist in VFC]
+        save_jsonl(non_sec_VFC, f"{output_folder}/UNSPLIT/nonSECVFC.jsonl")
+    else:
+        non_sec_VFC = read_jsonl(f"{output_folder}/UNSPLIT/nonSECVFC.jsonl")
+
     
     log.info("Fetch security commit")
-    label0s, label1s = [[] * 5], [[] * 5]
-    
-    label0s[0], label1s[0] = VIC, VFC
-    label0s[1], label1s[1] = VIC, non_VIC
-    label0s[2], label1s[2] = VIC, [i + j for i, j in zip(VFC, non_VIC)]
-    label0s[3], label1s[3] = VIC, non_sec_non_VIC
-    label0s[4], label1s[4] = VIC, [i + j for i, j in zip(non_sec_VFC, non_sec_non_VIC)]
+    label0s = [VIC, VIC, VIC, VIC, VIC]
+    label1s = [VFC, non_VIC, [i + j for i, j in zip(VFC, non_VIC)], non_sec_non_VIC, [i + j for i, j in zip(non_sec_VFC, non_sec_non_VIC)]]
     
     to_dataset( project, output_folder, label0s, label1)  
     
