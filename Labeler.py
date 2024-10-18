@@ -99,9 +99,9 @@ def to_dataset(project: str, out_folder: str, label1s: List[List[List]], label0s
     
     output_files = { 
         part: {
-                "train": {setup : f"{out_folder}/SETUP{setup+1}/unsampling/SETUP{setup+1}-{project}-{file}-train.jsonl" for setup in range(5)},
-                "val": {setup : f"{out_folder}/SETUP{setup+1}/SETUP{setup+1}-{project}-{file}-val.jsonl" for setup in range(5)},
-                "test": {setup : f"{out_folder}/SETUP{setup+1}/SETUP{setup+1}-{project}-{file}-test.jsonl" for setup in range(5)}
+                "train": {setup : f"{out_folder}/SETUP{setup+1}/unsampling/SETUP{setup+1}-{project}-{part}-train.jsonl" for setup in range(5)},
+                "val": {setup : f"{out_folder}/SETUP{setup+1}/SETUP{setup+1}-{project}-{part}-val.jsonl" for setup in range(5)},
+                "test": {setup : f"{out_folder}/SETUP{setup+1}/SETUP{setup+1}-{project}-{part}-test.jsonl" for setup in range(5)}
             } 
         for part in ["features", "simcom", "deepjit", "vcc-features"]
     }
