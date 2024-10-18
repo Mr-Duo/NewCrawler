@@ -32,6 +32,7 @@ def create_console_log_handler(name: str) -> log.Logger:
     consoleHandler.setLevel(log.INFO)
     formatter = log.Formatter('%(asctime)s :: %(funcName)s - %(levelname)s :: %(message)s')
     consoleHandler.setFormatter(formatter)
+    logger.addHandler(consoleHandler)
     log.getLogger('pydriller').setLevel(log.WARNING)
     log.info(f"Logging initialized")
     return logger
