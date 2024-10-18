@@ -215,6 +215,6 @@ if __name__ == "__main__":
     label0s = [VIC, VIC, VIC, VIC, VIC]
     label1s = [VFC, non_VIC, [i + j for i, j in zip(VFC, non_VIC)], non_sec_non_VIC, [i + j for i, j in zip(non_sec_VFC, non_sec_non_VIC)]]
     
-    to_dataset( project, output_folder, label0s, label1)  
+    to_dataset( project, output_folder, label0s, label1s)  
     
     log.info("Complete!")
