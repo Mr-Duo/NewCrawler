@@ -85,11 +85,9 @@ def de_date(data: List[List[Dict]]) -> List[List[str]]:
 #                     f.write(json.dumps(line) + "\n")
                             
 def to_dataset(project: str, out_folder: str, label1s: List[List[List]], label0s: List[List[List]]) -> None:
-    out_folder = f"{out_folder}/{setup}"
-    if not os.path.exists(out_folder):
-        os.mkdir(out_folder)
-    if not os.path.exists(f"{out_folder}/unsampling"):
-        os.mkdir(f"{out_folder}/unsampling")
+    for setup in range(5):
+        if not os.path.exists(f"{out_folder}/SETUP{setup+1}/unsampling"):
+            os.makedirs(f"{out_folder}/SETUP{setup+1}/unsampling")
     datasets = ["train", "val", "test"]
     
     input_files = {
