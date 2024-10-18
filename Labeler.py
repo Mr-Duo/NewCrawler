@@ -201,7 +201,7 @@ if __name__ == "__main__":
     non_sec_VFC = [[elem for elem in sublist if elem not in security] for sublist in VFC]
     
     log.info("Fetch security commit")
-    label0s, label1s = [], []
+    label0s, label1s = [[] * 5], [[] * 5]
     
     label0s[0], label1s[0] = VIC, VFC
     label0s[1], label1s[1] = VIC, non_VIC

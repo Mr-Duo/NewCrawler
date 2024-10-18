@@ -27,7 +27,8 @@ if not os.path.exists(DEFAULT_DATA_OUTPUT):
 
 def create_console_log_handler(name: str) -> log.Logger:  
     logger = log.getLogger(name=name)
-    logger.setLevel(log.INFO) 
+    logger.setLevel(log.INFO)
+    logger.handlers.clear() 
     consoleHandler = log.StreamHandler() 
     consoleHandler.setLevel(log.INFO)
     formatter = log.Formatter('%(asctime)s :: %(funcName)s - %(levelname)s :: %(message)s')
