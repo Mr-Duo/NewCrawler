@@ -1,1 +1,12 @@
 GitPython
+PyDriller==1.15.2
+PyYAML
+options
+testresources
+dateparser
+networkx
+beautifulsoup4
+lxml
+packaging
+regex
+python-Levenshtein

@@ -55,7 +55,7 @@ class Extractor:
                 if line[0]["fix"]:
                     append_jsonl(
                         [{
-                            "VFC": line[0]["commit_id"],
+                            "commit_id": line[0]["commit_id"],
                             "Repository": self.repo_name
                         }], 
                         f"{self.save_path}/security-{self.file_name}"
@@ -153,20 +153,6 @@ class Extractor:
         pruned_code_dict = code_dict.prune(100000)
         save_jsonl([pruned_msg_dict.get_dict(), pruned_code_dict.get_dict()], f"{self.save_path}/dict-{self.repo_name}.jsonl")   
 
-
-# Example usage
-# if __name__ == "__main__":
-#     import argparse
-#     parser = argparse.ArgumentParser(add_help= False)
-#     parser.add_argument("--path", type=str, help= "Path to jsonl input file", default= f"{DIR_PATH}/input")
-#     parser.add_argument("--repo_name", type=str, help="Repo name")
-#     parser.add_argument("--start", type=int, default=None, help= "First commit index")
-#     parser.add_argument("--end", type=int, default=None, help="Last commit index")
-
-#     params = parser.parse_args()
-#     ext = Extractor(params)
-#     ext.run()
-
 if __name__ == "__main__":
     from argparse import Namespace
     
@@ -178,53 +164,6 @@ if __name__ == "__main__":
         }
         cfg = Namespace(**cfg)
         return cfg
-
-
-    # path = "E:/ALL_DATA/raw_data/FFmpeg/extracted-all-{}-start-{}-end-{}.jsonl"
-    # repo = "FFmpeg"
-    # first = 4800
-    # end = 24000
-    # step = 4800
-    
-    # cfg = get_cfg(repo, False)
-    # ext = Extractor(cfg)
-    # file_path = path.format(repo, 0, step)
-    # ext.run(file_path)
-    
-    # cfg = get_cfg(repo, True)
-    # ext = Extractor(cfg)
-    # for st in range(first, end, step):
-    #     ed = st + step
-    #     file_path = path.format(repo, st, ed)
-    #     ext.run(file_path)
-        
-    
-    # first = 24000
-    # end = 120000
-    # step = 24000
-
-    # for st in range(first, end, step):
-    #     ed = st + step
-    #     file_path = path.format(repo, st, ed)
-    #     ext.run(file_path)
-    
-    # path = "E:/ALL_DATA/raw_data/OpenSSL/extracted-all-{}-start-{}-end-{}.jsonl"
-    # repo = "OpenSSL"
-    # first = 7200
-    # end = 36000
-    # step = 7200
-    
-    # cfg = get_cfg(repo, False)
-    # ext = Extractor(cfg)
-    # file_path = path.format(repo, 0, step)
-    # ext.run(file_path)
-    
-    # cfg = get_cfg(repo, True)
-    # ext = Extractor(cfg)
-    # for st in range(first, end, step):
-    #     ed = st + step
-    #     file_path = path.format(repo, st, ed)
-    #     ext.run(file_path)
     
     def fetch_jsonl_files(root_dir):
         jsonl_files = []

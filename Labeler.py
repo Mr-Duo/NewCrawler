@@ -1,6 +1,11 @@
 import json
 import math
-import re, os
+import re, os, shutil
+import tempfile
+import traceback
+from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from functools import partial
 from typing import List, Set, Tuple
 from tqdm import tqdm
 from utils.utils import *
@@ -14,7 +19,6 @@ def get_value(file: str, key: str) -> Set[str]:
 def get_VFC_VIC(label_files: List[str]) -> (Set[str], Set[str]):
     VFC, VIC = set(), set()
     for label_file in label_files:
-        print(label_file)
         for line in load_jsonl(label_file):
             VFC.add(line["VFC"])
             VIC.update(line["VIC"])
@@ -73,22 +77,73 @@ def de_date(data: List[List[Dict]]) -> List[List[str]]:
             
     return res
 
-# def to_file(in_files: str, out_file: str, label1: List, label0: List) -> None:
-#     with open(out_file, "w") as f:
-#         for file in in_files:
-#             for line in load_jsonl(file):
-#                 if line["commit_id"] in label0:
-#                     line["label"] = 0
-#                     f.write(json.dumps(line) + "\n")
-#                 elif line["commit_id"] in label1:
-#                     line["label"] = 1
-#                     f.write(json.dumps(line) + "\n")
+def to_file(file: str, part: str, label0s: List, label1s: List, temp_dir: str) -> str:
+    # log.info(f"{file} - {part}")
+    temp_files = {
+        dataset: {
+            setup: tempfile.NamedTemporaryFile(mode='w', delete=False, dir=temp_dir, suffix=f"_{part}_{dataset}_{setup}.tmp")
+            for setup in range(5)
+        } for dataset in ["train", "val", "test"]
+    }
+    
+    names = []
+    for dataset in ["train", "val", "test"]:
+        for setup in range(5):
+            names.append(temp_files[dataset][setup].name)
+
+    datasets = ["train", "val", "test"]
+    count = 0
+    for line in load_jsonl(file):
+        for setup in range(5):
+            for dataset, label0, label1 in zip(datasets, label0s[setup], label1s[setup]):
+                if line["commit_id"] in label0:
+                    line["label"] = 0
+                    with open(temp_files[dataset][setup].name, "a") as f:
+                        f.write(json.dumps(line) + "\n")
+
+                
+                elif line["commit_id"] in label1:
+                    line["label"] = 1
+                    with open(temp_files[dataset][setup].name, "a") as f:
+                        f.write(json.dumps(line) + "\n")
+
+    return names
+
+def merge_class_files(temp_files: List, output_files: Dict) -> None:
+    log.info("Merge")
+    class_files = {
+        part: {
+            dataset: {
+                setup: [] for setup in range(5)
+            }
+            for dataset in ["train", "val", "test"]
+        } 
+        for part in ["features", "simcom", "deepjit", "vcc-features"]    
+    }
+
+    for temp_file in temp_files:
+        setup_name = int(temp_file.split('_')[-1].split('.')[0])
+        dataset_name = temp_file.split('_')[-2]
+        part_name = temp_file.split('_')[-3]
+        class_files[part_name][dataset_name][setup_name].append(temp_file)
+    
+    for part in ["features", "simcom", "deepjit", "vcc-features"]:
+        for dataset in ["train", "val", "test"]:
+            for setup in range(5):
+                output_file = output_files[part][dataset][setup]
+                with open(output_file, 'w') as f_out:
+                    for temp_file in class_files[part][dataset][setup]:
+                        with open(temp_file, 'r') as f_in:
+                            f_out.write(f_in.read())
                             
-def to_dataset(project: str, out_folder: str, label1s: List[List[List]], label0s: List[List[List]]) -> None:
+def to_dataset(project: str, out_folder: str, label0s: List[List[List]], label1s: List[List[List]], workers: int=8) -> None:
     for setup in range(5):
         if not os.path.exists(f"{out_folder}/SETUP{setup+1}/unsampling"):
             os.makedirs(f"{out_folder}/SETUP{setup+1}/unsampling")
-    datasets = ["train", "val", "test"]
+    
+    temp_dir = "temp"
+    if not os.path.exists(temp_dir):
+        os.makedirs(temp_dir)
     
     input_files = {
         "features": find_files(FEATURES_PATERN, f"{DEFAULT_EXTRACTED_OUTPUT}/{project}"),
@@ -106,19 +161,26 @@ def to_dataset(project: str, out_folder: str, label1s: List[List[List]], label0s
         for part in ["features", "simcom", "deepjit", "vcc-features"]
     }
     
-    log.info("Dataset!")
-    for part in ["features", "simcom", "deepjit", "vcc-features"]:
-        for file in input_files[part]:
-            log.info(file)
-            for line in load_jsonl(file):
-                for setup in range(5):
-                    for dataset, label0, label1 in zip(datasets, label0s[setup], label1s[setup]):
-                        if line["commit_id"] in label0:
-                            line["label"] = 0
-                            append_jsonl([line], output_files[part][dataset][setup])
-                        elif line["commit_id"] in label1:
-                            line["label"] = 1
-                            append_jsonl([line], output_files[part][dataset][setup])                                      
+    temp_files = []
+    futures = []
+    
+    # Use ThreadPoolExecutor to process files in parallel
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        for part in ["features", "simcom", "deepjit", "vcc-features"]:
+            futures.extend( [
+                executor.submit(to_file, file, part, label0s, label1s, temp_dir)
+                for file in input_files[part]
+            ] )
+             
+        # Collect all temp file names
+        with tqdm(desc="Complete: ", total=len(futures)) as bar:
+            for future in as_completed(futures):
+                temp_files.extend(future.result())
+                bar.update(1)
+
+    # Merge the temp files for each class into final output files
+    merge_class_files(temp_files, output_files)
+    shutil.rmtree(temp_dir)                                    
      
 def check_before_run(output_folder: str) -> bool:
     if not os.path.exists(f"{output_folder}/UNSPLIT/VIC.jsonl"):
@@ -129,19 +191,13 @@ def check_before_run(output_folder: str) -> bool:
         return False
     if not os.path.exists(f"{output_folder}/UNSPLIT/security.jsonl"):
         return False
+    if not os.path.exists(f"{output_folder}/UNSPLIT/non_sec_VFC.jsonl"):
+        return False
+    if not os.path.exists(f"{output_folder}/UNSPLIT/non_sec_non_VIC.jsonl"):
+        return False
     return True
 
-if __name__ == "__main__":
-    log = create_console_log_handler("console")
-    log.info("Start!!")
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--input_folder", type=str, default="label")
-    parser.add_argument("--output_folder", type=str, default=None)
-    parser.add_argument("--project", type=str, required=True)
-    parser.add_argument("--continue_run", action="store_true")
-    params = parser.parse_args()
-    
+def run(params):
     input_folder = params.input_folder
     output_folder = params.output_folder if params.output_folder else DEFAULT_DATA_OUTPUT
     project = params.project
@@ -164,6 +220,9 @@ if __name__ == "__main__":
         log.info("Complete get VFC, VIC")
         feature_files = find_files(FEATURES_PATERN, f"{DEFAULT_EXTRACTED_OUTPUT}/{project}")
         non_VIC, security = get_non_VIC_and_security(feature_files, VFC, VIC)
+        non_sec_VFC = [elem for elem in VFC if elem not in security]
+        non_sec_non_VIC = [elem for elem in non_VIC if elem not in security]
+        
         log.info("Complete get nonVIC")
         if not os.path.exists(f"{output_folder}/UNSPLIT"):
             os.mkdir(f"{output_folder}/UNSPLIT")
@@ -171,12 +230,14 @@ if __name__ == "__main__":
         assign_date(feature_files, f"{output_folder}/UNSPLIT/VFC.jsonl", VFC)
         assign_date(feature_files, f"{output_folder}/UNSPLIT/non_VIC.jsonl", non_VIC)
         assign_date(feature_files, f"{output_folder}/UNSPLIT/security.jsonl", security)
+        assign_date(feature_files, f"{output_folder}/UNSPLIT/non_sec_VFC.jsonl", non_sec_VFC)
+        assign_date(feature_files, f"{output_folder}/UNSPLIT/non_sec_non_VIC.jsonl", non_sec_non_VIC)
+        
         log.info("Complete assign date!")
         
         get_data_sorted_by_date(f"{output_folder}/UNSPLIT/VIC.jsonl")
         get_data_sorted_by_date(f"{output_folder}/UNSPLIT/VFC.jsonl")
-        get_data_sorted_by_date(f"{output_folder}/UNSPLIT/non_VIC.jsonl")
-        get_data_sorted_by_date(f"{output_folder}/UNSPLIT/security.jsonl")
+                
         log.info("Sorted by date")
         del VIC, VFC, non_VIC
         
@@ -184,34 +245,45 @@ if __name__ == "__main__":
     VFC = read_jsonl(f"{output_folder}/UNSPLIT/VFC.jsonl")
     non_VIC = read_jsonl(f"{output_folder}/UNSPLIT/non_VIC.jsonl")
     security = read_jsonl(f"{output_folder}/UNSPLIT/security.jsonl")
+    non_sec_VFC = read_jsonl(f"{output_folder}/UNSPLIT/non_sec_VFC.jsonl")
+    non_sec_non_VIC = read_jsonl(f"{output_folder}/UNSPLIT/non_sec_non_VIC.jsonl")
     
     ratios = [(0, 0.75), (0.75, 0.8), (0.8, 1)]
     VIC = split_by_ratio(VIC, ratios)
     date = [(v[0]["date"], v[-1]["date"]) for v in VIC]
     VFC = split_by_date(VFC, date)
     non_VIC = split_by_date(non_VIC, date)
+    non_sec_VFC = split_by_date(non_sec_VFC, date)
+    non_sec_non_VIC = split_by_date(non_sec_non_VIC, date)
+    
     log.info("Splitted")
     VIC = de_date(VIC)
     VFC = de_date(VFC)
     non_VIC = de_date(non_VIC)
-    
-    if not params.continue_run or not os.path.exists(f"{output_folder}/UNSPLIT/nonSECnonVIC.jsonl"):
-        non_sec_non_VIC = [[elem for elem in sublist if elem not in security] for sublist in non_VIC]
-        save_jsonl(non_sec_non_VIC, f"{output_folder}/UNSPLIT/nonSECnonVIC.jsonl")
-    else:
-        non_sec_non_VIC = read_jsonl(f"{output_folder}/UNSPLIT/nonSECnonVIC.jsonl")
-        
-    if not params.continue_run or not os.path.exists(f"{output_folder}/UNSPLIT/nonSECVFC.jsonl"):
-        non_sec_VFC = [[elem for elem in sublist if elem not in security] for sublist in VFC]
-        save_jsonl(non_sec_VFC, f"{output_folder}/UNSPLIT/nonSECVFC.jsonl")
-    else:
-        non_sec_VFC = read_jsonl(f"{output_folder}/UNSPLIT/nonSECVFC.jsonl")
-
+    non_sec_VFC = de_date(non_sec_VFC)
+    non_sec_non_VIC = de_date(non_sec_non_VIC)
     
     log.info("Fetch security commit")
     label0s = [VIC, VIC, VIC, VIC, VIC]
     label1s = [VFC, non_VIC, [i + j for i, j in zip(VFC, non_VIC)], non_sec_non_VIC, [i + j for i, j in zip(non_sec_VFC, non_sec_non_VIC)]]
     
-    to_dataset( project, output_folder, label0s, label1s)  
-    
-    log.info("Complete!")
+    log.info("To Dataset")
+    try:
+        to_dataset(project, output_folder, label0s, label1s, params.workers)     
+        log.info("Complete!")
+    except Exception as e:
+        log.error(traceback.format_exc())
+        shutil.rmtree('temp')   
+
+if __name__ == "__main__":
+    log = create_console_log_handler("console")
+    log.info("Start!!")
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input_folder", type=str, default="label")
+    parser.add_argument("--output_folder", type=str, default=None)
+    parser.add_argument("--project", type=str, required=True)
+    parser.add_argument("--workers", type=int, default=8)
+    parser.add_argument("--continue_run", action="store_true")
+    params = parser.parse_args()
+    run(params)
