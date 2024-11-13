@@ -1,6 +1,7 @@
 import argparse, os
 from Miner import Miner
 from Extractor import Extractor
+from szz.main import run
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 
@@ -18,11 +19,13 @@ def main():
     miner = Miner(params)
     out_file = miner.run()
 
-    cfg = {
-        "path": out_file
+    ext_cfg = {
+        "repo_name": params.repo_name,
+        "continue_run": False,
+        "save_path": None,
     }
-    cfg = argparse.Namespace(**cfg)
-    extractor = Extractor(cfg)
+    ext_cfg = argparse.Namespace(**cfg)
+    extractor = Extractor(ext_cfg)
     extractor.run()
 
 if __name__ == "__main__":

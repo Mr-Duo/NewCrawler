@@ -3,12 +3,15 @@ import math
 import re, os, shutil
 import tempfile
 import traceback
+import logging
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import partial
 from typing import List, Set, Tuple
 from tqdm import tqdm
 from utils.utils import *
+
+log = create_console_log_handler("console")
 
 def get_value(file: str, key: str) -> Set[str]:
     out = set()
@@ -19,16 +22,16 @@ def get_value(file: str, key: str) -> Set[str]:
 def get_VFC_VIC(label_files: List[str]) -> (Set[str], Set[str]):
     VFC, VIC = set(), set()
     for label_file in label_files:
+        log.info(label_file)
         for line in load_jsonl(label_file):
-            VFC.add(line["VFC"])
+            VFC.add(line["commit_id"])
             VIC.update(line["VIC"])
-            
     return (VFC, VIC)
 
 def get_non_VIC_and_security(files: List[str], VFC: Set[str], VIC: Set[str]) -> Set[str]:
     non_VIC, security = set(), set()
     for file in files:
-        for commit in load_jsonl(file):
+        for commit in tqdm(load_jsonl(file)):
             if commit["commit_id"] not in (VFC | VIC):
                 non_VIC.add(commit["commit_id"])
             if commit["fix"] == 1:
@@ -93,7 +96,7 @@ def to_file(file: str, part: str, label0s: List, label1s: List, temp_dir: str) -
 
     datasets = ["train", "val", "test"]
     count = 0
-    for line in load_jsonl(file):
+    for line in tqdm(load_jsonl(file)):
         for setup in range(5):
             for dataset, label0, label1 in zip(datasets, label0s[setup], label1s[setup]):
                 if line["commit_id"] in label0:
@@ -216,10 +219,11 @@ def run(params):
         VFC = T_VFC | ST_VFC
         VIC = T_VIC | ST_VIC
         del T_VFC, T_VIC, ST_VFC, ST_VIC
-        
         log.info("Complete get VFC, VIC")
         feature_files = find_files(FEATURES_PATERN, f"{DEFAULT_EXTRACTED_OUTPUT}/{project}")
+        log.info(feature_files)
         non_VIC, security = get_non_VIC_and_security(feature_files, VFC, VIC)
+        log.info(non_VIC)
         non_sec_VFC = [elem for elem in VFC if elem not in security]
         non_sec_non_VIC = [elem for elem in non_VIC if elem not in security]
         
@@ -276,7 +280,6 @@ def run(params):
         shutil.rmtree('temp')   
 
 if __name__ == "__main__":
-    log = create_console_log_handler("console")
     log.info("Start!!")
     import argparse
     parser = argparse.ArgumentParser()

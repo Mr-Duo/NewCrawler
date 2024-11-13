@@ -51,14 +51,14 @@ class Extractor:
             iterator = load_jsonl(self.file_path)
             for commit in tqdm(iterator, "Processing Kamei14 Features:"):
                 line = [features_extractor.process(commit)]
-                append_jsonl(line, f"{self.save_path}/features-{self.file_name}")
+                append_jsonl(line, f"{self.save_path}/features-{self.repo_name}.jsonl")
                 if line[0]["fix"]:
                     append_jsonl(
                         [{
                             "commit_id": line[0]["commit_id"],
                             "Repository": self.repo_name
                         }], 
-                        f"{self.save_path}/security-{self.file_name}"
+                        f"{self.save_path}/security-{self.repo_name}.jsonl"
                     )
             features_extractor.save_state(self.save_path)
         except Exception as e:
@@ -76,7 +76,7 @@ class Extractor:
             for commit in tqdm(iterator, "Processing VCCFinder Features:"):
                 features_extractor.absorb(commit)
             features_extractor.save_state(self.save_path)
-            features_extractor.release(f"{self.save_path}/vcc-features-{self.file_name}")
+            features_extractor.release(f"{self.save_path}/vcc-features-{self.repo_name}.jsonl")
         except Exception as e:
             print(line)
             self.logger.error(traceback.format_exc())
@@ -132,8 +132,8 @@ class Extractor:
                 "code_change": "\n".join(patch_codes)
             }
             try:
-                append_jsonl([deepjit], f"{self.save_path}/deepjit-{self.file_name}")
-                append_jsonl([simcom], f"{self.save_path}/simcom-{self.file_name}")
+                append_jsonl([deepjit], f"{self.save_path}/deepjit-{self.repo_name}.jsonl")
+                append_jsonl([simcom], f"{self.save_path}/simcom-{self.repo_name}.jsonl")
 
                 for word in message.split():
                     msg_dict.add(word)

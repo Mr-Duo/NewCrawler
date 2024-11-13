@@ -246,7 +246,7 @@ if __name__ == "__main__":
     check_requirements()
 
     parser = argparse.ArgumentParser(description='USAGE: python main.py <bugfix_commits.json> <conf_file path> <repos_directory(optional)>\n* If <repos_directory> is not set, pyszz will download each repository')
-    parser.add_argument('input_json', type=str, help='/path/to/bug-fixes.jsonl')
+    parser.add_argument('input_jsonl', type=str, help='/path/to/bug-fixes.jsonl')
     parser.add_argument('conf_file', type=str, help='/path/to/configuration-file.yml')
     parser.add_argument('repos_dir', type=str, nargs='?', help='/path/to/repo-directory')
     parser.add_argument('num_core', type=int, default=1, help='number of workers, default = 1')

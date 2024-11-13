@@ -10,7 +10,7 @@ DEFAULT_INPUT = f'{PARENT_DIR}/input'
 DEFAULT_EXTRACTED_OUTPUT = f'{PARENT_DIR}/output/extracted'
 DEFAULT_DATA_OUTPUT = f"{PARENT_DIR}/output/dataset"
 
-EXTRACTED_FILE_NAME_PATERN = "{}-extracted-all-[a-zA-Z0-9]+(-start-[0-9]+)?(-end-[0-9]+)?[.]jsonl$"
+EXTRACTED_FILE_NAME_PATERN = "{}-.*[.]jsonl$"
 SIMCOM_PATERN = EXTRACTED_FILE_NAME_PATERN.format("simcom")
 DEEPJIT_PATERN = EXTRACTED_FILE_NAME_PATERN.format("deepjit")
 SECURITY_PATERN = EXTRACTED_FILE_NAME_PATERN.format("security")
