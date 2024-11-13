@@ -24,7 +24,7 @@ def get_VFC_VIC(label_files: List[str]) -> (Set[str], Set[str]):
     for label_file in label_files:
         log.info(label_file)
         for line in load_jsonl(label_file):
-            VFC.add(line["commit_id"])
+            VFC.add(line["VFC"])
             VIC.update(line["VIC"])
     return (VFC, VIC)
 
@@ -251,6 +251,13 @@ def run(params):
     security = read_jsonl(f"{output_folder}/UNSPLIT/security.jsonl")
     non_sec_VFC = read_jsonl(f"{output_folder}/UNSPLIT/non_sec_VFC.jsonl")
     non_sec_non_VIC = read_jsonl(f"{output_folder}/UNSPLIT/non_sec_non_VIC.jsonl")
+    
+    log.info(f"VFC: {len(VFC)}")
+    log.info(f"VIC: {len(VIC)}")
+    log.info(f"non_VIC: {len(non_VIC)}")
+    log.info(f"security: {len(security)}")
+    log.info(f"non_sec_VFC: {len(non_sec_VFC)}")
+    log.info(f"non_sec_non_VIC: {len(non_sec_non_VIC)}")
     
     ratios = [(0, 0.75), (0.75, 0.8), (0.8, 1)]
     VIC = split_by_ratio(VIC, ratios)
