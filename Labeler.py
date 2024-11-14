@@ -195,9 +195,8 @@ def to_dataset(project: str, out_folder: str, label0s: List[List[List]], label1s
             } 
         for part in ["features", "simcom", "deepjit", "vcc-features"]
     }
-    
+    temp_files = []
     for part in ["features", "simcom", "deepjit", "vcc-features"]:
-        temp_files = []
         file = input_files[part][0]
         with ProcessPoolExecutor(max_workers=workers) as executor:
             futures = []
@@ -211,7 +210,7 @@ def to_dataset(project: str, out_folder: str, label0s: List[List[List]], label1s
                 temp_files.extend(future.result())
 
         # Merge the temp files for each class into final output files
-        merge_class_files(temp_files, output_files)
+    merge_class_files(temp_files, output_files)
     shutil.rmtree(temp_dir)                                   
      
 def check_before_run(output_folder: str) -> bool:
