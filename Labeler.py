@@ -102,7 +102,7 @@ def de_date(data: List[List[Dict]]) -> List[List[str]]:
             
     return res
 
-def to_file(lines: List, part: str, label0s: List, label1s: List, temp_dir: str) -> str:
+def to_file(lines: List, part: str, label0s: List, label1s: List, temp_dir: str, id: int) -> str:
     # log.info(f"{file} - {part}")
     temp_files = {
         dataset: {
@@ -118,7 +118,7 @@ def to_file(lines: List, part: str, label0s: List, label1s: List, temp_dir: str)
 
     datasets = ["train", "val", "test"]
     count = 0
-    for line in lines:
+    for line in tqdm(lines, f"Chunk {id}"):
         for setup in range(5):
             for dataset, label0, label1 in zip(datasets, label0s[setup], label1s[setup]):
                 if line["commit_id"] in label0:
@@ -164,6 +164,7 @@ def merge_class_files(temp_files: List, output_files: Dict) -> None:
 def read_file_in_chunks(filename, chunk_size=10000):
     with open(filename, 'r') as file:
         while True:
+            id += 1
             lines = [file.readline() for _ in range(chunk_size)]
             lines = list(filter(None, lines))
             if not lines:
@@ -196,23 +197,22 @@ def to_dataset(project: str, out_folder: str, label0s: List[List[List]], label1s
         for part in ["features", "simcom", "deepjit", "vcc-features"]
     }
     
-    temp_files = []
-    
     for part in ["features", "simcom", "deepjit", "vcc-features"]:
+        temp_files = []
         file = input_files[part][0]
         with ThreadPoolExecutor(max_workers=workers) as executor:
             futures = []
             log.info(file)
-            for chunk in tqdm(read_file_in_chunks(file)):
-                futures.append(executor.submit(to_file, chunk, part, label0s, label1s, temp_dir))
+            id = 0
+            for chunk in tqdm(read_file_in_chunks(file), "Process Chunks: "):
+                id += 1
+                futures.append(executor.submit(to_file, chunk, part, label0s, label1s, temp_dir, id))
                     
-            with tqdm(desc=f"Complete {part}: ", total=len(futures)) as bar:
-                for future in as_completed(futures):
-                    temp_files.extend(future.result())
-                    bar.update(1)
+            for future in as_completed(futures):
+                temp_files.extend(future.result())
 
-    # Merge the temp files for each class into final output files
-    merge_class_files(temp_files, output_files)
+        # Merge the temp files for each class into final output files
+        merge_class_files(temp_files, output_files)
     shutil.rmtree(temp_dir)                                   
      
 def check_before_run(output_folder: str) -> bool:
