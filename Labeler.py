@@ -168,7 +168,8 @@ def read_file_in_chunks(filename, chunk_size=10000):
             lines = list(filter(None, lines))
             if not lines:
                 break
-            yield json.loads(lines)
+            lines = [json.loads(line) for line in lines]
+            yield lines
                             
 def to_dataset(project: str, out_folder: str, label0s: List[List[List]], label1s: List[List[List]], workers: int=8) -> None:
     for setup in range(5):
