@@ -214,8 +214,9 @@ def run(params):
     
     if not params.continue_run or not check_before_run(output_folder):    
         T_VFC, T_VIC = get_VFC_VIC(find_files(trusted_file, f"{input_folder}/trusted_data/{project}"))
+        log.info(find_files(trusted_file, f"{input_folder}/trusted_data/{project}"))
         ST_VFC, ST_VIC = get_VFC_VIC(find_files(semi_trusted_file, f"{input_folder}/semi_trusted_data/{project}"))
-        
+        log.info(find_files(semi_trusted_file, f"{input_folder}/semi_trusted_data/{project}"))
         VFC = T_VFC | ST_VFC
         VIC = T_VIC | ST_VIC
         del T_VFC, T_VIC, ST_VFC, ST_VIC
