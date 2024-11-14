@@ -45,30 +45,31 @@ def assign_date(target_files: List[str], output_folder, VIC, VFC, non_VIC, secur
                 "commit_id": line["commit_id"],
                 "date": line["date"]
             }
+            sec = 0
+            if line["commit_id"] in security:
+                with open(f"{output_folder}/UNSPLIT/security.jsonl", "a") as f:
+                    f.write(json.dumps(out) + "\n")
+                    sec = 1
+            
             if line["commit_id"] in VIC:
                 with open(f"{output_folder}/UNSPLIT/VIC.jsonl", "a") as f:
                     f.write(json.dumps(out) + "\n")
             
-            if line["commit_id"] in VFC:
+            elif line["commit_id"] in VFC:
                 with open(f"{output_folder}/UNSPLIT/VFC.jsonl", "a") as f:
                     f.write(json.dumps(out) + "\n")
+                    
+                if sec == 0:
+                    with open(f"{output_folder}/UNSPLIT/non_sec_VFC.jsonl", "a") as f:
+                        f.write(json.dumps(out) + "\n")
             
-            if line["commit_id"] in non_VIC:
+            else:
                 with open(f"{output_folder}/UNSPLIT/non_VIC.jsonl", "a") as f:
                     f.write(json.dumps(out) + "\n")
-            
-            if line["commit_id"] in security:
-                with open(f"{output_folder}/UNSPLIT/security.jsonl", "a") as f:
-                    f.write(json.dumps(out) + "\n")
-            
-            if line["commit_id"] in non_sec_VFC:
-                with open(f"{output_folder}/UNSPLIT/non_sec_VFC.jsonl", "a") as f:
-                    f.write(json.dumps(out) + "\n")
-            
-            if line["commit_id"] in non_sec_non_VIC:
-                with open(f"{output_folder}/UNSPLIT/non_sec_non_VIC.jsonl", "a") as f:
-                    f.write(json.dumps(out) + "\n")
-            
+                
+                if sec == 0:
+                    with open(f"{output_folder}/UNSPLIT/non_sec_non_VIC.jsonl", "a") as f:
+                        f.write(json.dumps(out) + "\n")          
             del out
                         
 def get_data_sorted_by_date(path: str) -> List[Dict]:
