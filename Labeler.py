@@ -48,21 +48,27 @@ def assign_date(target_files: List[str], output_folder, VIC, VFC, non_VIC, secur
             if line["commit_id"] in VIC:
                 with open(f"{output_folder}/UNSPLIT/VIC.jsonl", "a") as f:
                     f.write(json.dumps(out) + "\n")
-            elif line["commit_id"] in VFC:
+            
+            if line["commit_id"] in VFC:
                 with open(f"{output_folder}/UNSPLIT/VFC.jsonl", "a") as f:
                     f.write(json.dumps(out) + "\n")
-            elif line["commit_id"] in non_VIC:
+            
+            if line["commit_id"] in non_VIC:
                 with open(f"{output_folder}/UNSPLIT/non_VIC.jsonl", "a") as f:
                     f.write(json.dumps(out) + "\n")
-            elif line["commit_id"] in security:
+            
+            if line["commit_id"] in security:
                 with open(f"{output_folder}/UNSPLIT/security.jsonl", "a") as f:
                     f.write(json.dumps(out) + "\n")
-            elif line["commit_id"] in non_sec_VFC:
+            
+            if line["commit_id"] in non_sec_VFC:
                 with open(f"{output_folder}/UNSPLIT/non_sec_VFC.jsonl", "a") as f:
                     f.write(json.dumps(out) + "\n")
-            elif line["commit_id"] in non_sec_non_VIC:
+            
+            if line["commit_id"] in non_sec_non_VIC:
                 with open(f"{output_folder}/UNSPLIT/non_sec_non_VIC.jsonl", "a") as f:
                     f.write(json.dumps(out) + "\n")
+            
             del out
                         
 def get_data_sorted_by_date(path: str) -> List[Dict]:
@@ -95,7 +101,7 @@ def de_date(data: List[List[Dict]]) -> List[List[str]]:
             
     return res
 
-def to_file(file: str, part: str, label0s: List, label1s: List, temp_dir: str) -> str:
+def to_file(lines: List, part: str, label0s: List, label1s: List, temp_dir: str) -> str:
     # log.info(f"{file} - {part}")
     temp_files = {
         dataset: {
@@ -111,7 +117,7 @@ def to_file(file: str, part: str, label0s: List, label1s: List, temp_dir: str) -
 
     datasets = ["train", "val", "test"]
     count = 0
-    for line in tqdm(load_jsonl(file)):
+    for line in lines:
         for setup in range(5):
             for dataset, label0, label1 in zip(datasets, label0s[setup], label1s[setup]):
                 if line["commit_id"] in label0:
@@ -154,6 +160,15 @@ def merge_class_files(temp_files: List, output_files: Dict) -> None:
                         with open(temp_file, 'r') as f_in:
                             f_out.write(f_in.read())
                             
+def read_file_in_chunks(filename, chunk_size=10000):
+    with open(filename, 'r') as file:
+        while True:
+            lines = [file.readline() for _ in range(chunk_size)]
+            lines = list(filter(None, lines))
+            if not lines:
+                break
+            yield lines
+                            
 def to_dataset(project: str, out_folder: str, label0s: List[List[List]], label1s: List[List[List]], workers: int=8) -> None:
     for setup in range(5):
         if not os.path.exists(f"{out_folder}/SETUP{setup+1}/unsampling"):
@@ -180,25 +195,23 @@ def to_dataset(project: str, out_folder: str, label0s: List[List[List]], label1s
     }
     
     temp_files = []
-    futures = []
     
-    # Use ThreadPoolExecutor to process files in parallel
-    with ThreadPoolExecutor(max_workers=workers) as executor:
-        for part in ["features", "simcom", "deepjit", "vcc-features"]:
-            futures.extend( [
-                executor.submit(to_file, file, part, label0s, label1s, temp_dir)
-                for file in input_files[part]
-            ] )
-             
-        # Collect all temp file names
-        with tqdm(desc="Complete: ", total=len(futures)) as bar:
-            for future in as_completed(futures):
-                temp_files.extend(future.result())
-                bar.update(1)
+    for part in ["features", "simcom", "deepjit", "vcc-features"]:
+        file = input_files[part]
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            futures = []
+            log.info(file)
+            for chunk in tqdm(read_file_in_chunks(file)):
+                futures.append(executor.submit(to_file, chunk, part, label0s, label1s, temp_dir))
+                    
+            with tqdm(desc=f"Complete {part}: ", total=len(futures)) as bar:
+                for future in as_completed(futures):
+                    temp_files.extend(future.result())
+                    bar.update(1)
 
     # Merge the temp files for each class into final output files
     merge_class_files(temp_files, output_files)
-    shutil.rmtree(temp_dir)                                    
+    shutil.rmtree(temp_dir)                                   
      
 def check_before_run(output_folder: str) -> bool:
     if not os.path.exists(f"{output_folder}/UNSPLIT/VIC.jsonl"):
