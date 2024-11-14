@@ -5,7 +5,7 @@ import tempfile
 import traceback
 import logging
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from functools import partial
 from typing import List, Set, Tuple
 from tqdm import tqdm
@@ -199,7 +199,7 @@ def to_dataset(project: str, out_folder: str, label0s: List[List[List]], label1s
     for part in ["features", "simcom", "deepjit", "vcc-features"]:
         temp_files = []
         file = input_files[part][0]
-        with ThreadPoolExecutor(max_workers=workers) as executor:
+        with ProcessPoolExecutor(max_workers=workers) as executor:
             futures = []
             log.info(file)
             id = 0
