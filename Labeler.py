@@ -46,7 +46,7 @@ def assign_date(target_files: List[str], output_folder, VIC, VFC, non_VIC, secur
                 "date": line["date"]
             }
             sec = 0
-            if line["commit_id"] in security:
+            if line["fix"] ==  1:
                 with open(f"{output_folder}/UNSPLIT/security.jsonl", "a") as f:
                     f.write(json.dumps(out) + "\n")
                     sec = 1
@@ -198,7 +198,7 @@ def to_dataset(project: str, out_folder: str, label0s: List[List[List]], label1s
     temp_files = []
     
     for part in ["features", "simcom", "deepjit", "vcc-features"]:
-        file = input_files[part]
+        file = input_files[part][0]
         with ThreadPoolExecutor(max_workers=workers) as executor:
             futures = []
             log.info(file)
