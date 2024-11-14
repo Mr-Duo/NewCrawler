@@ -160,7 +160,7 @@ def merge_class_files(temp_files: List, output_files: Dict, part: str) -> None:
                     with open(temp_file, 'r') as f_in:
                         f_out.write(f_in.read())
                             
-def read_file_in_chunks(filename, chunk_size=10000):
+def read_file_in_chunks(filename, chunk_size=100):
     with open(filename, 'r') as file:
         while True:
             lines = [file.readline() for _ in range(chunk_size)]
