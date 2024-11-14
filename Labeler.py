@@ -160,7 +160,7 @@ def merge_class_files(temp_files: List, output_files: Dict, part: str) -> None:
                     with open(temp_file, 'r') as f_in:
                         f_out.write(f_in.read())
                             
-def read_file_in_chunks(filename, chunk_size=100):
+def read_file_in_chunks(filename, chunk_size=5000):
     with open(filename, 'r') as file:
         while True:
             lines = [file.readline() for _ in range(chunk_size)]
@@ -176,6 +176,8 @@ def to_dataset(project: str, out_folder: str, label0s: List[List[List]], label1s
             os.makedirs(f"{out_folder}/SETUP{setup+1}/unsampling")
     
     temp_dir = "temp"
+    if os.path.exists(temp_dir):
+        shutil.rmtree(temp_dir)
     if not os.path.exists(temp_dir):
         os.makedirs(temp_dir)
     
@@ -203,8 +205,6 @@ def to_dataset(project: str, out_folder: str, label0s: List[List[List]], label1s
             id = 0
             for chunk in tqdm(read_file_in_chunks(file), "Process Chunks: "):
                 id += 1
-                if id == 5:
-                    break
                 futures.append(executor.submit(to_file, chunk, part, label0s, label1s, temp_dir, id))
                     
             for future in as_completed(futures):
