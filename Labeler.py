@@ -134,12 +134,12 @@ def to_file(lines: List, part: str, label0s: List, label1s: List, temp_dir: str,
 
     return names
 
-def merge_class_files(temp_files: List, output_files: Dict) -> None:
+def merge_class_files(temp_files: List, output_files: Dict, part: str) -> None:
     log.info("Merge")
     class_files = {
         part: {
             dataset: {
-                setup: [] for setup in range(5)
+                setup: set() for setup in range(5)
             }
             for dataset in ["train", "val", "test"]
         } 
@@ -150,16 +150,15 @@ def merge_class_files(temp_files: List, output_files: Dict) -> None:
         setup_name = int(temp_file.split('_')[-1].split('.')[0])
         dataset_name = temp_file.split('_')[-2]
         part_name = temp_file.split('_')[-3]
-        class_files[part_name][dataset_name][setup_name].append(temp_file)
+        class_files[part_name][dataset_name][setup_name].add(temp_file)
     
-    for part in ["features", "simcom", "deepjit", "vcc-features"]:
-        for dataset in ["train", "val", "test"]:
-            for setup in range(5):
-                output_file = output_files[part][dataset][setup]
-                with open(output_file, 'w') as f_out:
-                    for temp_file in class_files[part][dataset][setup]:
-                        with open(temp_file, 'r') as f_in:
-                            f_out.write(f_in.read())
+    for dataset in ["train", "val", "test"]:
+        for setup in range(5):
+            output_file = output_files[part][dataset][setup]
+            with open(output_file, 'w') as f_out:
+                for temp_file in class_files[part][dataset][setup]:
+                    with open(temp_file, 'r') as f_in:
+                        f_out.write(f_in.read())
                             
 def read_file_in_chunks(filename, chunk_size=10000):
     with open(filename, 'r') as file:
@@ -195,22 +194,24 @@ def to_dataset(project: str, out_folder: str, label0s: List[List[List]], label1s
             } 
         for part in ["features", "simcom", "deepjit", "vcc-features"]
     }
-    temp_files = []
     for part in ["features", "simcom", "deepjit", "vcc-features"]:
         file = input_files[part][0]
+        temp_files = []
         with ProcessPoolExecutor(max_workers=workers) as executor:
             futures = []
             log.info(file)
             id = 0
             for chunk in tqdm(read_file_in_chunks(file), "Process Chunks: "):
                 id += 1
+                if id == 5:
+                    break
                 futures.append(executor.submit(to_file, chunk, part, label0s, label1s, temp_dir, id))
                     
             for future in as_completed(futures):
                 temp_files.extend(future.result())
 
         # Merge the temp files for each class into final output files
-    merge_class_files(temp_files, output_files)
+        merge_class_files(temp_files, output_files, part)
     shutil.rmtree(temp_dir)                                   
      
 def check_before_run(output_folder: str) -> bool:
