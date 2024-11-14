@@ -38,17 +38,32 @@ def get_non_VIC_and_security(files: List[str], VFC: Set[str], VIC: Set[str]) -> 
                 security.add(commit["commit_id"])
     return non_VIC, security
 
-def assign_date(target_files: List[str], label_file: str, label_set: Set[str]) -> None:
-    with open(label_file, "w") as f:
-        for target_file in target_files:
-            for line in load_jsonl(target_file):
-                if line["commit_id"] in label_set:
-                    out = {
-                        "commit_id": line["commit_id"],
-                        "date": line["date"]
-                    }
+def assign_date(target_files: List[str], output_folder, VIC, VFC, non_VIC, security, non_sec_VFC, non_sec_non_VIC) -> None:
+    for target_file in target_files:
+        for line in load_jsonl(target_file):
+            out = {
+                "commit_id": line["commit_id"],
+                "date": line["date"]
+            }
+            if line["commit_id"] in VIC:
+                with open(f"{output_folder}/UNSPLIT/VIC.jsonl", "a") as f:
                     f.write(json.dumps(out) + "\n")
-                    del out
+            elif line["commit_id"] in VFC:
+                with open(f"{output_folder}/UNSPLIT/VFC.jsonl", "a") as f:
+                    f.write(json.dumps(out) + "\n")
+            elif line["commit_id"] in non_VIC:
+                with open(f"{output_folder}/UNSPLIT/non_VIC.jsonl", "a") as f:
+                    f.write(json.dumps(out) + "\n")
+            elif line["commit_id"] in security:
+                with open(f"{output_folder}/UNSPLIT/security.jsonl", "a") as f:
+                    f.write(json.dumps(out) + "\n")
+            elif line["commit_id"] in non_sec_VFC:
+                with open(f"{output_folder}/UNSPLIT/non_sec_VFC.jsonl", "a") as f:
+                    f.write(json.dumps(out) + "\n")
+            elif line["commit_id"] in non_sec_non_VIC:
+                with open(f"{output_folder}/UNSPLIT/non_sec_non_VIC.jsonl", "a") as f:
+                    f.write(json.dumps(out) + "\n")
+            del out
                         
 def get_data_sorted_by_date(path: str) -> List[Dict]:
     res = [v for v in load_jsonl(path)]
@@ -212,7 +227,10 @@ def run(params):
     if not os.path.exists(output_folder):
         os.mkdir(output_folder)
     
-    if not params.continue_run or not check_before_run(output_folder):    
+    if not params.continue_run or not check_before_run(output_folder):   
+        if os.path.exists(f"{output_folder}/UNSPLIT"):
+            shutil.rmtree(f"{output_folder}/UNSPLIT")
+         
         T_VFC, T_VIC = get_VFC_VIC(find_files(trusted_file, f"{input_folder}/trusted_data/{project}"))
         log.info(find_files(trusted_file, f"{input_folder}/trusted_data/{project}"))
         ST_VFC, ST_VIC = get_VFC_VIC(find_files(semi_trusted_file, f"{input_folder}/semi_trusted_data/{project}"))
@@ -231,12 +249,7 @@ def run(params):
         log.info("Complete get nonVIC")
         if not os.path.exists(f"{output_folder}/UNSPLIT"):
             os.mkdir(f"{output_folder}/UNSPLIT")
-        assign_date(feature_files, f"{output_folder}/UNSPLIT/VIC.jsonl", VIC)
-        assign_date(feature_files, f"{output_folder}/UNSPLIT/VFC.jsonl", VFC)
-        assign_date(feature_files, f"{output_folder}/UNSPLIT/non_VIC.jsonl", non_VIC)
-        assign_date(feature_files, f"{output_folder}/UNSPLIT/security.jsonl", security)
-        assign_date(feature_files, f"{output_folder}/UNSPLIT/non_sec_VFC.jsonl", non_sec_VFC)
-        assign_date(feature_files, f"{output_folder}/UNSPLIT/non_sec_non_VIC.jsonl", non_sec_non_VIC)
+        assign_date(feature_files, output_folder, VIC, VFC, non_VIC, security, non_sec_VFC, non_sec_non_VIC)
         
         log.info("Complete assign date!")
         
