@@ -164,7 +164,6 @@ def merge_class_files(temp_files: List, output_files: Dict) -> None:
 def read_file_in_chunks(filename, chunk_size=10000):
     with open(filename, 'r') as file:
         while True:
-            id += 1
             lines = [file.readline() for _ in range(chunk_size)]
             lines = list(filter(None, lines))
             if not lines:
