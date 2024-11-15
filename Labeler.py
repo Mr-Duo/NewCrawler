@@ -160,7 +160,7 @@ def merge_class_files(temp_files: List, output_files: Dict, part: str) -> None:
                     with open(temp_file, 'r') as f_in:
                         f_out.write(f_in.read())
                             
-def read_file_in_chunks(filename, chunk_size=5000):
+def read_file_in_chunks(filename, chunk_size=2000):
     with open(filename, 'r') as file:
         while True:
             lines = [file.readline() for _ in range(chunk_size)]
@@ -196,7 +196,7 @@ def to_dataset(project: str, out_folder: str, label0s: List[List[List]], label1s
             } 
         for part in ["features", "simcom", "deepjit", "vcc-features"]
     }
-    for part in ["features", "simcom", "deepjit", "vcc-features"]:
+    for part in ["vcc-features"]:
         file = input_files[part][0]
         temp_files = []
         with ProcessPoolExecutor(max_workers=workers) as executor:
