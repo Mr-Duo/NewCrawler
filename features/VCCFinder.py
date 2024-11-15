@@ -1,4 +1,4 @@
-import math, re, os
+import math, re, os, shutil
 import logging
 import traceback
 import numpy as np
@@ -63,7 +63,8 @@ class VCCFinder:
     
     def release (self, file: str):  
         number_unique_contributors = self.keep_track_meta["total_contributors"]    
-        
+        if os.path.exists(file):
+            shutil.rmtree(file)
         feat = {}
         for commit_id in tqdm(self.keep_track_meta["commits"]):
             author = self.keep_track_meta["commits"][commit_id]["author"]

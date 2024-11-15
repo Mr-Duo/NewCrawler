@@ -36,9 +36,9 @@ class Extractor:
         print(f"\tProcess: {self.file_name}")
         futures = []
         with ProcessPoolExecutor(max_workers=3) as executor:
-            executor.submit(self.process_feature_Kamei14)
+            # executor.submit(self.process_feature_Kamei14)
             executor.submit(self.process_feature_VCCFinder)
-            executor.submit(self.process_commit)
+            # executor.submit(self.process_commit)
         for future in as_completed(futures):
             pass
 
