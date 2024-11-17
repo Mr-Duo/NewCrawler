@@ -8,8 +8,8 @@ from sklearn.metrics import (
 )
 
 def eval_result(predict_file, features_file):
-    predict_df = pd.read_csv(predict_file, sep="\t")
-    predict_df.columns = ["commit_hash", "proba", "pred", "label"]
+    predict_df = pd.read_csv(predict_file)
+    # predict_df.columns = ["commit_hash", "proba", "pred", "label"]
     predict_df['pred'] = predict_df['pred'].apply(lambda x: float(bool(x)))
     features_df = pd.read_json(features_file, lines=True)
     
@@ -118,23 +118,55 @@ def get_recall_at_k_percent_effort(percent_effort, result_df_arg, real_buggy_com
 
     return recall_k_percent_effort
 
+def run(params):
+    predict_file = params.predict_file
+    features_file = params.features_file
+    save_folder = params.save_folder
+    model = params.model
+    
+    combine_df = pd.DataFrame([], columns=["roc_auc", "pr_auc", "accuracy", "f1_score", "precision", "recall", "mcc", "Effort@20", "Recall@20", "Popt"])
+    result_df = eval_result(predict_file, features_file)
+    result_df.index = [model]
+    
+    if not os.path.exists(save_folder):
+        os.makedirs(save_folder)
+        
+    if os.path.exists(save_folder + "/metrics.csv"):
+        combine_df = pd.read_csv(save_folder + "/metrics.csv", index_col=0)
+        
+    combine_df = pd.concat([combine_df, result_df], axis=0)
+    combine_df.to_csv(save_folder + "/metrics.csv")
+
 if __name__ == "__main__":
-    for setup in ["SETUP1", "SETUP2", "SETUP3"]:
-        for sampling in ["ros", "rus", "unsampling"]:
-            combine_df = pd.DataFrame([], columns=["roc_auc", "pr_auc", "accuracy", "f1_score", "precision", "recall", "mcc", "Effort@20", "Recall@20", "Popt"])
-            for model in ["jitfine"]:
-                if model == "simcom":
-                    merge(f"E:/Containers/{setup}/{sampling}/dg_cache/save/FFmpeg/predict_scores")
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--predict_file", type=str, required=True)
+    parser.add_argument("--features_file", type=str, default=True)
+    parser.add_argument("--save_folder", type=str, required=True)
+    parser.add_argument("--model", type=str, required=True)
+    
+    params = parser.parse_args()
+    run(params)
+    
+    
+
+# if __name__ == "__main__":
+#     for setup in ["SETUP1", "SETUP2", "SETUP3"]:
+#         for sampling in ["ros", "rus", "unsampling"]:
+#             combine_df = pd.DataFrame([], columns=["roc_auc", "pr_auc", "accuracy", "f1_score", "precision", "recall", "mcc", "Effort@20", "Recall@20", "Popt"])
+#             for model in ["jitfine"]:
+#                 if model == "simcom":
+#                     merge(f"E:/Containers/{setup}/{sampling}/dg_cache/save/FFmpeg/predict_scores")
                 
-                print(f"{setup} - {sampling} - {model}: ")
-                path = f"E:\Containers\{setup}\{sampling}\dg_cache\save\FFmpeg\{model}\checkpoints"
-                predict_file = f"{path}\predictions.csv"
-                features_file = f"E:/JIT-VP-Data/FFmpeg/{setup}/{setup}-FFmpeg-features-test.jsonl"
-                result_df = eval_result(predict_file, features_file)
-                result_df.index = [model]
+#                 print(f"{setup} - {sampling} - {model}: ")
+#                 path = f"E:\Containers\{setup}\{sampling}\dg_cache\save\FFmpeg\{model}\checkpoints"
+#                 predict_file = f"{path}\predictions.csv"
+#                 features_file = f"E:/JIT-VP-Data/FFmpeg/{setup}/{setup}-FFmpeg-features-test.jsonl"
+#                 result_df = eval_result(predict_file, features_file)
+#                 result_df.index = [model]
                 
-                if not os.path.exists(f"E:/JIT-DP-experiment/save/{sampling}/{setup}"):
-                    os.makedirs(f"E:/JIT-DP-experiment/save/{sampling}/{setup}")
-                combine_df = pd.concat([combine_df, result_df], axis=0)
-                combine_df.to_csv(f"E:/JIT-DP-experiment/save/{sampling}/{setup}/{setup}_{sampling}.csv")
+#                 if not os.path.exists(f"E:/JIT-DP-experiment/save/{sampling}/{setup}"):
+#                     os.makedirs(f"E:/JIT-DP-experiment/save/{sampling}/{setup}")
+#                 combine_df = pd.concat([combine_df, result_df], axis=0)
+#                 combine_df.to_csv(f"E:/JIT-DP-experiment/save/{sampling}/{setup}/{setup}_{sampling}.csv")
             
